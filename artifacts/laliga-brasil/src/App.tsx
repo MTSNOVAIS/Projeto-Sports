@@ -14,6 +14,7 @@ import AdminArticlesList from "@/pages/admin/articles-list";
 import AdminArticleEditor from "@/pages/admin/article-editor";
 import AdminImport from "@/pages/admin/import";
 import AdminTeamsList from "@/pages/admin/teams-list";
+import AdminTeamEditor from "@/pages/admin/team-editor";
 import NotFound from "@/pages/not-found";
 
 const queryClient = new QueryClient({
@@ -41,6 +42,7 @@ function Router() {
       <Route path="/dashboard/artigos/:id/editar" component={AdminArticleEditor} />
       <Route path="/dashboard/importar" component={AdminImport} />
       <Route path="/dashboard/times" component={AdminTeamsList} />
+      <Route path="/dashboard/times/:id" component={AdminTeamEditor} />
 
       <Route component={NotFound} />
     </Switch>
