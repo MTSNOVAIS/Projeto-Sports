@@ -75,9 +75,9 @@ export default function AdminImport() {
   };
 
   return (
-    <div className="min-h-screen flex bg-background">
-      <main className="flex-1 p-8">
-        <header className="mb-8">
+    <AdminLayout>
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="mb-8">
           <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
             <Link href="/dashboard" className="hover:text-white">Dashboard</Link> <span>/</span> <span className="text-white">Importador AI</span>
           </div>
@@ -85,7 +85,7 @@ export default function AdminImport() {
             <DownloadCloud className="text-primary" /> Importar e Traduzir
           </h1>
           <p className="text-muted-foreground mt-2 max-w-2xl">Busque matérias de jornais internacionais renomados e utilize IA para traduzir e adaptar automaticamente para português brasileiro, mantendo os créditos originais.</p>
-        </header>
+        </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           {/* Sources List */}
@@ -183,7 +183,7 @@ export default function AdminImport() {
             </div>
           </div>
         </div>
-      </AdminLayout>
-    </div>
+      </div>
+    </AdminLayout>
   );
 }
