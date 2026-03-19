@@ -1,13 +1,14 @@
 import React, { useState } from "react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { useAdminListTeams } from "@/hooks/use-teams";
-import { Shield, Edit, MapPin, Building2, Archive, Search, Trophy } from "lucide-react";
+import { Shield, Edit, MapPin, Building2, Archive, Search, Trophy, Plus } from "lucide-react";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 
 export default function AdminTeamsList() {
   const { data: teams, isLoading } = useAdminListTeams();
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"all" | "active" | "archived">("active");
+  const [, setLocation] = useLocation();
 
   const filtered = (teams || []).filter(t => {
     const matchSearch = t.name.toLowerCase().includes(search.toLowerCase()) || t.city.toLowerCase().includes(search.toLowerCase());
@@ -18,6 +19,20 @@ export default function AdminTeamsList() {
   return (
     <AdminLayout>
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Header with Add Button */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
+          <div>
+            <h1 className="text-2xl font-bold text-white mb-1">Gerenciar Clubes</h1>
+            <p className="text-sm text-muted-foreground">Adicione, edite ou gerencie os clubes da La Liga</p>
+          </div>
+          <button
+            onClick={() => setLocation("/dashboard/times/new")}
+            className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-accent text-white rounded-lg text-sm font-bold transition-colors"
+          >
+            <Plus className="w-4 h-4" /> Novo Clube
+          </button>
+        </div>
+
         {/* Filters */}
         <div className="flex flex-col sm:flex-row gap-3 mb-8">
           <div className="relative flex-1 max-w-xs">

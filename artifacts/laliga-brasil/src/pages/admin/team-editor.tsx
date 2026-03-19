@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useRoute, Link } from "wouter";
+import { useRoute, Link, useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import {
   Shield, Save, Archive, ArchiveRestore, Plus, Trash2,
@@ -45,6 +45,8 @@ export default function AdminTeamEditor() {
   const id = params?.id || "";
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  
+  const isNewTeam = id === "new";
 
   const [team, setTeam] = useState<TeamData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -56,6 +58,26 @@ export default function AdminTeamEditor() {
   const [addingTitle, setAddingTitle] = useState(false);
 
   useEffect(() => {
+    if (isNewTeam) {
+      setTeam({
+        id: 0,
+        name: "",
+        slug: "",
+        shortName: "",
+        city: "",
+        stadium: "",
+        foundedYear: "",
+        description: "",
+        logoUrl: "",
+        primaryColor: "#DB0037",
+        secondaryColor: "#FFFFFF",
+        titles: [],
+        archived: false,
+        articleCount: 0,
+      });
+      setLoading(false);
+      return;
+    }
     if (!id) return;
     fetch(`${BASE}/api/admin/teams/${id}`)
       .then(r => r.json())
@@ -68,26 +90,43 @@ export default function AdminTeamEditor() {
       })
       .catch(() => toast({ title: "Erro", description: "Não foi possível carregar o clube.", variant: "destructive" }))
       .finally(() => setLoading(false));
-  }, [id]);
+  }, [id, isNewTeam]);
 
   const set = (key: keyof TeamData, value: any) => setTeam(prev => prev ? { ...prev, [key]: value } : prev);
 
   const handleSave = async () => {
     if (!team) return;
+    if (!team.name.trim() || !team.slug.trim() || !team.city.trim() || !team.stadium.trim()) {
+      toast({ title: "Erro", description: "Preencha todos os campos obrigatórios.", variant: "destructive" });
+      return;
+    }
+    
     setSaving(true);
     try {
-      const res = await fetch(`${BASE}/api/admin/teams/${team.id}`, {
-        method: "PUT",
+      const payload = {
+        ...team,
+        foundedYear: team.foundedYear ? parseInt(team.foundedYear) : null,
+      };
+      
+      const isCreating = isNewTeam || team.id === 0;
+      const url = isCreating ? `${BASE}/api/admin/teams` : `${BASE}/api/admin/teams/${team.id}`;
+      const method = isCreating ? "POST" : "PUT";
+      
+      const res = await fetch(url, {
+        method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...team,
-          foundedYear: team.foundedYear ? parseInt(team.foundedYear) : null,
-        }),
+        body: JSON.stringify(payload),
       });
       if (!res.ok) throw new Error(await res.text());
       const updated = await res.json();
       setTeam(prev => prev ? { ...prev, ...updated, titles: Array.isArray(updated.titles) ? updated.titles : [] } : prev);
-      toast({ title: "Salvo!", description: "Clube atualizado com sucesso." });
+      
+      const msg = isCreating ? "Clube criado com sucesso!" : "Clube atualizado com sucesso.";
+      toast({ title: "Salvo!", description: msg });
+      
+      if (isCreating) {
+        setTimeout(() => setLocation(`/dashboard/times/${updated.id}`), 500);
+      }
     } catch (e: any) {
       toast({ title: "Erro", description: e.message || "Falha ao salvar.", variant: "destructive" });
     } finally {
@@ -159,28 +198,39 @@ export default function AdminTeamEditor() {
             <ChevronLeft className="w-5 h-5" />
           </Link>
           <div className="flex items-center gap-3">
-            <div
-              className="w-8 h-8 rounded-full flex items-center justify-center"
-              style={{ background: `${team.primaryColor}25`, border: `1.5px solid ${team.primaryColor}60` }}
-            >
-              {team.logoUrl
-                ? <img src={team.logoUrl} alt={team.name} className="w-6 h-6 object-contain" onError={e => (e.currentTarget.style.display = "none")} />
-                : <Shield className="w-4 h-4" style={{ color: team.primaryColor }} />}
-            </div>
+            {isNewTeam ? (
+              <div
+                className="w-8 h-8 rounded-full flex items-center justify-center"
+                style={{ background: `${team.primaryColor}25`, border: `1.5px solid ${team.primaryColor}60` }}
+              >
+                <Plus className="w-4 h-4" style={{ color: team.primaryColor }} />
+              </div>
+            ) : (
+              <div
+                className="w-8 h-8 rounded-full flex items-center justify-center"
+                style={{ background: `${team.primaryColor}25`, border: `1.5px solid ${team.primaryColor}60` }}
+              >
+                {team.logoUrl
+                  ? <img src={team.logoUrl} alt={team.name} className="w-6 h-6 object-contain" onError={e => (e.currentTarget.style.display = "none")} />
+                  : <Shield className="w-4 h-4" style={{ color: team.primaryColor }} />}
+              </div>
+            )}
             <div>
-              <h1 className="text-base font-bold text-white leading-none">{team.name}</h1>
-              <span className="text-xs text-muted-foreground">{team.archived ? "🔴 Rebaixado / Arquivado" : "🟢 Ativo"}</span>
+              <h1 className="text-base font-bold text-white leading-none">{isNewTeam ? "Novo Clube" : team.name || "Novo Clube"}</h1>
+              {!isNewTeam && <span className="text-xs text-muted-foreground">{team.archived ? "🔴 Rebaixado / Arquivado" : "🟢 Ativo"}</span>}
             </div>
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => setConfirmArchive(true)}
-            className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-bold transition-colors border ${team.archived ? "border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10" : "border-amber-500/30 text-amber-400 hover:bg-amber-500/10"}`}
-          >
-            {team.archived ? <ArchiveRestore className="w-4 h-4" /> : <Archive className="w-4 h-4" />}
-            <span className="hidden sm:inline">{team.archived ? "Reativar" : "Arquivar (Rebaixamento)"}</span>
-          </button>
+          {!isNewTeam && (
+            <button
+              onClick={() => setConfirmArchive(true)}
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-bold transition-colors border ${team.archived ? "border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10" : "border-amber-500/30 text-amber-400 hover:bg-amber-500/10"}`}
+            >
+              {team.archived ? <ArchiveRestore className="w-4 h-4" /> : <Archive className="w-4 h-4" />}
+              <span className="hidden sm:inline">{team.archived ? "Reativar" : "Arquivar (Rebaixamento)"}</span>
+            </button>
+          )}
           <button
             onClick={handleSave}
             disabled={saving}
