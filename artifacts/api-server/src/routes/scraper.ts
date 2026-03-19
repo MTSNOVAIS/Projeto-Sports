@@ -157,6 +157,24 @@ function decodeHtmlEntities(text: string): string {
     .replace(/&amp;/g, "&");  // Must be last to avoid double-decoding
 }
 
+// Helper function to strip HTML tags from text
+function stripHtmlTags(text: string): string {
+  return text
+    .replace(/<[^>]*>/g, "")  // Remove all HTML tags
+    .replace(/&nbsp;/g, " ")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&#8220;/g, '"')
+    .replace(/&#8221;/g, '"')
+    .replace(/&#8212;/g, "—")
+    .replace(/&#8211;/g, "–")
+    .replace(/&apos;/g, "'")
+    .replace(/&amp;/g, "&")  // Must be last to avoid double-decoding
+    .trim();
+}
+
 // Helper function to fetch RSS feed
 async function fetchRssFeed(feedUrl: string): Promise<any[]> {
   try {
@@ -228,16 +246,19 @@ router.post("/scraper/fetch-all", async (req, res): Promise<void> => {
       .map(async (source) => {
         try {
           const rawArticles = await fetchRssFeed(source.rssFeed!);
-          return rawArticles.slice(0, maxArticles).map((article: any) => ({
-            title: article.title || "",
-            excerpt: article.description || "",
-            content: article.description || "",
-            coverImage: article.image || null,
-            originalUrl: article.link || "",
-            sourceName: source.name,
-            sourceLanguage: source.language,
-            publishedAt: article.pubDate || new Date().toISOString(),
-          }));
+          return rawArticles.slice(0, maxArticles).map((article: any) => {
+            const cleanDescription = stripHtmlTags(article.description || "");
+            return {
+              title: stripHtmlTags(article.title || ""),
+              excerpt: cleanDescription.substring(0, 1000),
+              content: cleanDescription,
+              coverImage: article.image || null,
+              originalUrl: article.link || "",
+              sourceName: source.name,
+              sourceLanguage: source.language,
+              publishedAt: article.pubDate || new Date().toISOString(),
+            };
+          });
         } catch (err) {
           console.error(`Error fetching from ${source.name}:`, err);
           return [];

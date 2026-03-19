@@ -4,6 +4,24 @@ import { eq, and, desc, like, or, ilike, sql, count } from "drizzle-orm";
 
 const router: IRouter = Router();
 
+// Helper function to strip HTML tags from text
+function stripHtmlTags(text: string): string {
+  return text
+    .replace(/<[^>]*>/g, "")  // Remove all HTML tags
+    .replace(/&nbsp;/g, " ")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&#8220;/g, '"')
+    .replace(/&#8221;/g, '"')
+    .replace(/&#8212;/g, "—")
+    .replace(/&#8211;/g, "–")
+    .replace(/&apos;/g, "'")
+    .replace(/&amp;/g, "&")  // Must be last to avoid double-decoding
+    .trim();
+}
+
 function generateSlug(title: string): string {
   return title
     .toLowerCase()
@@ -270,15 +288,19 @@ router.post("/admin/articles", async (req, res): Promise<void> => {
     return;
   }
 
-  const slug = generateSlug(title);
+  // Strip HTML tags from all text fields
+  const cleanTitle = stripHtmlTags(title);
+  const cleanExcerpt = stripHtmlTags(excerpt);
+  const cleanContent = stripHtmlTags(content);
+  const slug = generateSlug(cleanTitle);
   const publishedAt = status === "published" ? new Date() : undefined;
   const scheduledAtDate = scheduledAt ? new Date(scheduledAt) : undefined;
 
   const [article] = await db.insert(articlesTable).values({
-    title,
+    title: cleanTitle,
     slug,
-    excerpt,
-    content,
+    excerpt: cleanExcerpt,
+    content: cleanContent,
     coverImage: coverImage || null,
     status: status || "draft",
     featured: featured || false,
@@ -315,10 +337,11 @@ router.put("/admin/articles/:id", async (req, res): Promise<void> => {
     return;
   }
 
+  // Strip HTML tags from all text fields
   const updateData: Partial<typeof articlesTable.$inferInsert> = {
-    title,
-    excerpt,
-    content,
+    title: title ? stripHtmlTags(title) : undefined,
+    excerpt: excerpt ? stripHtmlTags(excerpt) : undefined,
+    content: content ? stripHtmlTags(content) : undefined,
     coverImage: coverImage || null,
     status,
     featured: featured || false,
