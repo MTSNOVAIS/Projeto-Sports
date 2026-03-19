@@ -12,9 +12,12 @@ import { AdminLayout } from "@/components/layout/AdminLayout";
 
 export default function AdminArticleEditor() {
   const [, setLocation] = useLocation();
-  const [, params] = useRoute("/dashboard/artigos/:id/editar");
-  const isEditing = !!params?.id;
-  const articleId = isEditing ? parseInt(params.id) : undefined;
+  const [, editParams] = useRoute("/dashboard/artigos/:id/editar");
+  const [, newParams] = useRoute("/dashboard/artigos/new");
+  
+  const isNewArticle = !!newParams;
+  const isEditing = !!editParams?.id;
+  const articleId = isEditing ? parseInt(editParams!.id) : undefined;
   
   const { user } = useAuth();
   const { data: existingArticle, isLoading: loadingArticle } = useAdminGetArticle(articleId as number, { query: { enabled: isEditing } });

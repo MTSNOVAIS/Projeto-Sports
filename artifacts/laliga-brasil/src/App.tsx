@@ -50,7 +50,7 @@ function Router() {
           <AdminArticlesList />
         </ProtectedRoute>
       </Route>
-      <Route path="/dashboard/artigos/novo">
+      <Route path="/dashboard/artigos/new">
         <ProtectedRoute>
           <AdminArticleEditor />
         </ProtectedRoute>
