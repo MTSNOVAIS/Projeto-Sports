@@ -4,7 +4,7 @@ import { useGetArticle } from "@/hooks/use-articles";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { Link } from "wouter";
-import { Calendar, User, Eye, Share2, Twitter, Facebook, Link as LinkIcon, Shield } from "lucide-react";
+import { Calendar, User, Eye, Share2, Twitter, Facebook, Link as LinkIcon, Shield, Globe, Clock } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import ReactMarkdown from "react-markdown";
@@ -59,6 +59,11 @@ export default function ArticleView() {
                   <Shield className="w-3 h-3" /> {article.teamName}
                 </Link>
               )}
+              {article.sourceName && (
+                <span className="px-3 py-1 bg-blue-500/10 text-blue-400 text-xs font-bold uppercase tracking-wider rounded flex items-center gap-1">
+                  <Globe className="w-3 h-3" /> {article.sourceName}
+                </span>
+              )}
             </div>
             
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-black font-display text-white leading-[1.1] mb-6">
@@ -70,7 +75,7 @@ export default function ArticleView() {
             </p>
             
             <div className="flex flex-wrap items-center justify-between gap-4 text-sm text-muted-foreground font-medium py-4 border-t border-border">
-              <div className="flex items-center gap-6">
+              <div className="flex flex-wrap items-center gap-6">
                 <span className="flex items-center gap-2 text-white">
                   <User className="w-4 h-4 text-primary" /> {article.authorName}
                 </span>
@@ -113,15 +118,31 @@ export default function ArticleView() {
           
           {/* Attribution block for imported articles */}
           {article.sourceName && (
-            <div className="mt-12 p-6 bg-card border border-border rounded-xl">
-              <p className="text-sm text-muted-foreground">
-                <strong className="text-white">Nota Editorial:</strong> Este artigo foi publicado originalmente em <span className="text-primary font-bold">{article.sourceName}</span>{article.sourceUrl ? ` e pode ser acessado em sua versão original clicando aqui.` : '.'} Traduzido e adaptado pela La Liga Brasil via inteligência artificial.
-              </p>
-              {article.sourceUrl && (
-                <a href={article.sourceUrl} target="_blank" rel="noopener noreferrer" className="inline-flex mt-3 text-sm font-bold text-primary hover:text-accent items-center gap-1">
-                  Ler original em {article.sourceName} <Share2 className="w-3 h-3" />
-                </a>
-              )}
+            <div className="mt-12 p-6 bg-gradient-to-r from-blue-500/10 to-primary/10 border border-blue-500/30 rounded-xl">
+              <div className="flex items-start gap-4 mb-4">
+                <Globe className="w-5 h-5 text-blue-400 flex-shrink-0 mt-1" />
+                <div className="flex-grow">
+                  <p className="text-sm text-gray-300 mb-2">
+                    <strong className="text-white block mb-2">Fonte Original</strong>
+                    Este artigo foi publicado originalmente em <span className="text-blue-400 font-bold">{article.sourceName}</span>
+                    {article.sourceUrl && ` e pode ser acessado em sua versão original`}. 
+                    <span className="block text-xs text-gray-500 mt-2">
+                      Traduzido e adaptado pela La Liga Brasil via inteligência artificial para melhor compreensão do público brasileiro.
+                    </span>
+                  </p>
+                  {article.sourceUrl && (
+                    <a 
+                      href={article.sourceUrl} 
+                      target="_blank" 
+                      rel="noopener noreferrer" 
+                      className="inline-flex text-sm font-bold text-blue-400 hover:text-blue-300 items-center gap-2 mt-3 bg-blue-500/10 px-3 py-2 rounded hover:bg-blue-500/20 transition-colors"
+                    >
+                      <LinkIcon className="w-4 h-4" />
+                      Ler versão original em {article.sourceName}
+                    </a>
+                  )}
+                </div>
+              </div>
             </div>
           )}
         </div>
