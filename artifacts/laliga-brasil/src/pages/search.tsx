@@ -9,15 +9,27 @@ import { motion } from "framer-motion";
 
 export default function SearchPage() {
   const [location] = useLocation();
-  const params = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
-  const initialQuery = params.get('q') || '';
-  const [query, setQuery] = useState(initialQuery);
-  const [debouncedQuery, setDebouncedQuery] = useState(initialQuery);
+  
+  const getInitialQuery = () => {
+    if (typeof window !== 'undefined' && window.location.search) {
+      const params = new URLSearchParams(window.location.search);
+      return params.get('q') || '';
+    }
+    return '';
+  };
+
+  const [query, setQuery] = useState(getInitialQuery());
+  const [debouncedQuery, setDebouncedQuery] = useState(getInitialQuery());
 
   useEffect(() => {
-    const timer = setTimeout(() => setDebouncedQuery(query), 400);
+    const timer = setTimeout(() => setDebouncedQuery(query), 200);
     return () => clearTimeout(timer);
   }, [query]);
+
+  useEffect(() => {
+    setQuery(getInitialQuery());
+    setDebouncedQuery(getInitialQuery());
+  }, [location]);
 
   const { data: response, isLoading } = useListArticles({ search: debouncedQuery || undefined, limit: 20 });
   const articles = debouncedQuery ? (response?.articles || []) : [];

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useRef, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { Search, Menu, X, Shield } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -6,12 +6,34 @@ import { motion, AnimatePresence } from "framer-motion";
 export function Navbar() {
   const [location] = useLocation();
   const [isOpen, setIsOpen] = React.useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   const links = [
     { href: "/", label: "Home" },
     { href: "/times", label: "Times" },
     { href: "/categoria/resultados", label: "Resultados" },
   ];
+
+  // Fechar menu quando navega ou clica fora
+  useEffect(() => {
+    setIsOpen(false);
+  }, [location]);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        const button = document.querySelector('[data-menu-button]');
+        if (button && !button.contains(event.target as Node)) {
+          setIsOpen(false);
+        }
+      }
+    }
+
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [isOpen]);
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-white/5 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
@@ -51,6 +73,7 @@ export function Navbar() {
             </Link>
             
             <button 
+              data-menu-button
               className="md:hidden p-2 text-white"
               onClick={() => setIsOpen(!isOpen)}
             >
@@ -63,9 +86,11 @@ export function Navbar() {
       <AnimatePresence>
         {isOpen && (
           <motion.div 
+            ref={menuRef}
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.2 }}
             className="md:hidden border-t border-white/10 bg-card"
           >
             <div className="flex flex-col p-4 space-y-2">
@@ -73,8 +98,7 @@ export function Navbar() {
                 <Link 
                   key={link.href} 
                   href={link.href}
-                  onClick={() => setIsOpen(false)}
-                  className={`px-4 py-3 rounded-lg text-sm font-bold uppercase tracking-wider ${
+                  className={`px-4 py-3 rounded-lg text-sm font-bold uppercase tracking-wider transition-colors ${
                     location === link.href ? "bg-primary text-white" : "text-gray-400 hover:bg-white/5"
                   }`}
                 >
