@@ -2,7 +2,7 @@
 
 ## Overview
 
-A full-stack Brazilian news site about Spanish football (La Liga). Built with React + Vite frontend, Express API backend, PostgreSQL database, and OpenAI AI integration for translating international articles.
+A full-stack Brazilian news site about Spanish football (La Liga). Built with React + Vite frontend, Express API backend, PostgreSQL database with Drizzle ORM. Fetches real articles from international RSS sources (Marca, Mundo Deportivo, etc) and displays them in a responsive, beautiful interface with team filtering and search capabilities.
 
 ## Stack
 
@@ -16,10 +16,9 @@ A full-stack Brazilian news site about Spanish football (La Liga). Built with Re
 - **Validation**: Zod (`zod/v4`), `drizzle-zod`
 - **API codegen**: Orval (from OpenAPI spec)
 - **Build**: esbuild (CJS bundle)
-- **AI**: OpenAI via Replit AI Integrations (for article translation)
 - **Routing**: Wouter
 - **Styling**: Tailwind CSS with custom crimson color palette
-- **Data Sources**: RSS feeds + mock data fallback
+- **Data Sources**: Real RSS feeds only (no mock data)
 
 ## Color Palette
 
@@ -44,10 +43,11 @@ A full-stack Brazilian news site about Spanish football (La Liga). Built with Re
 - **Articles** (/dashboard/artigos): Full CRUD with filters by status, category, team, source
 - **Article Editor** (/dashboard/artigos/novo|/:id/editar): Rich editor with custom datetime picker for scheduling
 - **Import** (/dashboard/importar): 
-  - RSS feed support for real-time data from Marca, AS, BBC Sport, ESPN, Sport, Mundo Deportivo
-  - Real data status indicators (shows if articles are from live feeds or demo data)
-  - AI-powered automatic translation from Spanish/English to Brazilian Portuguese
-  - Direct link to view original article
+  - Unified timeline interface fetching from all RSS sources in parallel
+  - Team filter sidebar (add/remove La Liga teams to filter articles)
+  - Articles auto-publish with source site name as author attribution
+  - "Limpar" button to clear all team filters
+  - Real-time updates from RSS feeds: Marca, Mundo Deportivo (ESPN, BBC, AS, Sport may be unavailable)
   - One-click import to drafts for editorial review
 - **Teams** (/dashboard/times): Edit all 20 La Liga team profiles, logos, colors, descriptions
 - **Users** (/dashboard/usuarios): Manage admin users with role assignment

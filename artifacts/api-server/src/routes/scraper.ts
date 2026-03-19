@@ -141,6 +141,22 @@ const MOCK_ARTICLES: Record<string, Array<{
   ],
 };
 
+// Helper function to decode HTML entities
+function decodeHtmlEntities(text: string): string {
+  return text
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&#8220;/g, '"')
+    .replace(/&#8221;/g, '"')
+    .replace(/&#8212;/g, "—")
+    .replace(/&#8211;/g, "–")
+    .replace(/&apos;/g, "'")
+    .replace(/&amp;/g, "&");  // Must be last to avoid double-decoding
+}
+
 // Helper function to fetch RSS feed
 async function fetchRssFeed(feedUrl: string): Promise<any[]> {
   try {
@@ -173,10 +189,15 @@ async function fetchRssFeed(feedUrl: string): Promise<any[]> {
       const imageMatch = /<image.*?url>([\s\S]*?)<\/url>/.exec(itemContent);
 
       if (titleMatch && linkMatch) {
+        // Clean title and description - remove HTML tags and decode entities
+        const cleanTitle = decodeHtmlEntities(titleMatch[1].replace(/<[^>]*>/g, "").trim());
+        const rawDesc = descMatch ? descMatch[1].replace(/<[^>]*>/g, "") : "";
+        const cleanDesc = decodeHtmlEntities(rawDesc).trim();
+        
         articles.push({
-          title: titleMatch[1].replace(/<[^>]*>/g, ""),
-          description: descMatch ? descMatch[1].replace(/<[^>]*>/g, "").substring(0, 500) : "",
-          link: linkMatch[1],
+          title: cleanTitle,
+          description: cleanDesc.substring(0, 1000), // Increased from 500 to 1000
+          link: linkMatch[1].trim(),
           pubDate: pubDateMatch ? new Date(pubDateMatch[1]).toISOString() : new Date().toISOString(),
           image: imageMatch ? imageMatch[1] : null,
         });

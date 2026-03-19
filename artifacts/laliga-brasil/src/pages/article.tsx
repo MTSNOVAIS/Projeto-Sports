@@ -7,8 +7,6 @@ import { Link } from "wouter";
 import { Calendar, User, Eye, Share2, Twitter, Facebook, Link as LinkIcon, Shield, Globe, Clock } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
 
 export default function ArticleView() {
   const [, params] = useRoute("/noticias/:slug");
@@ -111,9 +109,9 @@ export default function ArticleView() {
         {/* Article Content */}
         <div className="container mx-auto px-4 max-w-3xl py-12">
           <article className="prose prose-invert prose-lg prose-p:text-gray-300 prose-headings:text-white prose-a:text-primary hover:prose-a:text-accent max-w-none">
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+            <div className="text-gray-300 leading-relaxed whitespace-pre-wrap">
               {article.content}
-            </ReactMarkdown>
+            </div>
           </article>
           
           {/* Attribution block for imported articles */}
