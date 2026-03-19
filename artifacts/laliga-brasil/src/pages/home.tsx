@@ -94,44 +94,6 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* Sidebar */}
-              <div className="lg:col-span-4 space-y-8">
-                {/* Trending Widget */}
-                <div className="bg-card rounded-2xl border border-border p-6 shadow-xl">
-                  <h3 className="font-display text-xl mb-6 flex items-center gap-2 text-white border-b border-border pb-4">
-                    <Trophy className="text-primary" /> Em Alta
-                  </h3>
-                  <div className="space-y-6">
-                    {articles.slice(0, 5).map((article, idx) => (
-                      <Link key={article.id} href={`/noticias/${article.slug}`} className="group flex gap-4 items-start">
-                        <span className="text-4xl font-display font-black text-border group-hover:text-primary/50 transition-colors leading-none">
-                          {idx + 1}
-                        </span>
-                        <div>
-                          <p className="font-bold text-sm text-gray-300 group-hover:text-white transition-colors line-clamp-3">
-                            {article.title}
-                          </p>
-                          <span className="text-xs text-primary font-medium mt-1 block uppercase">{article.category}</span>
-                        </div>
-                      </Link>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Newsletter Widget */}
-                <div className="bg-gradient-to-br from-secondary to-background rounded-2xl border border-primary/20 p-6 text-center relative overflow-hidden">
-                  {/* stock images unsplash email subscribe abstract */}
-                  <img src="https://images.unsplash.com/photo-1557683316-973673baf926?w=400&q=80" alt="bg" className="absolute inset-0 w-full h-full object-cover opacity-10 mix-blend-overlay" />
-                  <div className="relative z-10">
-                    <h3 className="font-display text-2xl font-bold text-white mb-2">Boletim La Liga</h3>
-                    <p className="text-sm text-gray-300 mb-6">Receba as principais notícias do futebol espanhol no seu email.</p>
-                    <input type="email" placeholder="Seu melhor email" className="w-full bg-black/50 border border-white/20 rounded-lg px-4 py-3 mb-3 text-white focus:outline-none focus:border-primary placeholder:text-gray-500" />
-                    <button className="w-full bg-primary hover:bg-accent text-white font-bold py-3 rounded-lg transition-colors shadow-lg shadow-primary/25 hover:shadow-primary/40 hover:-translate-y-0.5 transform">
-                      Inscrever-se
-                    </button>
-                  </div>
-                </div>
-              </div>
 
             </div>
           )}
