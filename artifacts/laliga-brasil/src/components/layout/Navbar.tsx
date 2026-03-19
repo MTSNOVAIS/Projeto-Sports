@@ -1,12 +1,17 @@
 import React, { useRef, useEffect } from "react";
-import { Link, useLocation } from "wouter";
+import { Link, useLocation, useNavigate } from "wouter";
 import { Search, Menu, X, Shield } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 export function Navbar() {
   const [location] = useLocation();
+  const navigate = useNavigate();
   const [isOpen, setIsOpen] = React.useState(false);
+  const [isSearchOpen, setIsSearchOpen] = React.useState(false);
+  const [searchQuery, setSearchQuery] = React.useState("");
   const menuRef = useRef<HTMLDivElement>(null);
+  const searchRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   const links = [
     { href: "/", label: "Home" },
@@ -17,6 +22,7 @@ export function Navbar() {
   // Fechar menu quando navega ou clica fora
   useEffect(() => {
     setIsOpen(false);
+    setIsSearchOpen(false);
   }, [location]);
 
   useEffect(() => {
@@ -27,13 +33,36 @@ export function Navbar() {
           setIsOpen(false);
         }
       }
+
+      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
+        const searchButton = document.querySelector('[data-search-button]');
+        if (searchButton && !searchButton.contains(event.target as Node)) {
+          setIsSearchOpen(false);
+        }
+      }
     }
 
-    if (isOpen) {
+    if (isOpen || isSearchOpen) {
       document.addEventListener('mousedown', handleClickOutside);
       return () => document.removeEventListener('mousedown', handleClickOutside);
     }
-  }, [isOpen]);
+  }, [isOpen, isSearchOpen]);
+
+  // Focus no input de busca quando abre
+  useEffect(() => {
+    if (isSearchOpen && searchInputRef.current) {
+      searchInputRef.current.focus();
+    }
+  }, [isSearchOpen]);
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      navigate(`/busca?q=${encodeURIComponent(searchQuery)}`);
+      setIsSearchOpen(false);
+      setSearchQuery("");
+    }
+  };
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-white/5 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
@@ -68,9 +97,13 @@ export function Navbar() {
           </div>
 
           <div className="flex items-center gap-4">
-            <Link href="/busca" className="p-2 text-muted-foreground hover:text-white transition-colors">
+            <button 
+              data-search-button
+              onClick={() => setIsSearchOpen(!isSearchOpen)}
+              className="p-2 text-muted-foreground hover:text-white transition-colors"
+            >
               <Search className="w-5 h-5" />
-            </Link>
+            </button>
             
             <button 
               data-menu-button
@@ -82,6 +115,50 @@ export function Navbar() {
           </div>
         </div>
       </div>
+
+      {/* Search Modal */}
+      <AnimatePresence>
+        {isSearchOpen && (
+          <motion.div
+            ref={searchRef}
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.15 }}
+            className="absolute top-20 right-0 left-0 z-40 border-b border-white/5 bg-background/95 backdrop-blur shadow-lg"
+          >
+            <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-6">
+              <form onSubmit={handleSearch} className="max-w-2xl">
+                <div className="relative">
+                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                  <input
+                    ref={searchInputRef}
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Buscar matérias, times, jogadores..."
+                    className="w-full bg-background border border-border rounded-lg pl-12 pr-12 py-3 text-white text-base focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none transition-all"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Escape') {
+                        setIsSearchOpen(false);
+                      }
+                    }}
+                  />
+                  {searchQuery && (
+                    <button 
+                      type="button"
+                      onClick={() => setSearchQuery("")}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-white transition-colors"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  )}
+                </div>
+              </form>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <AnimatePresence>
         {isOpen && (
