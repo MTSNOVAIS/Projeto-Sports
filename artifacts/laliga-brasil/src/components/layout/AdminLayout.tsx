@@ -15,7 +15,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   const menuRef = useRef<HTMLDivElement>(null);
 
   const navLinks = [
-    { href: "/dashboard", label: "Visão Geral" },
+    { href: "/dashboard", label: "Início" },
     { href: "/dashboard/artigos", label: "Artigos" },
     { href: "/dashboard/importar", label: "Importar" },
     { href: "/dashboard/times", label: "Times" },

@@ -1,7 +1,7 @@
 import React from "react";
 import { Link } from "wouter";
 import { useGetSiteStats } from "@/hooks/use-system";
-import { Eye, Edit3, CheckCircle, Clock } from "lucide-react";
+import { Eye, CheckCircle, Clock, FileText } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 
@@ -24,14 +24,9 @@ export default function AdminDashboard() {
   return (
     <AdminLayout>
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <header className="flex justify-between items-center mb-8">
-          <div>
-            <h1 className="text-3xl font-display font-bold text-white">Visão Geral</h1>
-            <p className="text-muted-foreground mt-1">Estatísticas e atividades recentes do portal.</p>
-          </div>
-          <Link href="/dashboard/artigos/novo" className="bg-primary hover:bg-accent text-white px-5 py-2.5 rounded-lg font-bold flex items-center gap-2 transition-colors shadow-lg shadow-primary/20">
-            <Edit3 className="w-4 h-4" /> Novo Artigo
-          </Link>
+        <header className="mb-8">
+          <h1 className="text-3xl font-display font-bold text-white">Início</h1>
+          <p className="text-muted-foreground mt-1">Estatísticas e atividades recentes do portal.</p>
         </header>
 
         {isLoading ? (
