@@ -36,114 +36,143 @@ export function RichTextEditor({ value, onChange, placeholder = "Escreva o conte
     return <div>Carregando editor...</div>;
   }
 
-  const ToolButton = ({ 
-    onClick, 
-    isActive, 
-    icon: Icon, 
-    title 
-  }: { 
-    onClick: () => void; 
-    isActive: boolean; 
-    icon: React.ComponentType<{ className?: string }>; 
-    title: string 
-  }) => (
-    <button
-      onClick={onClick}
-      title={title}
-      className={`p-2 rounded transition-colors ${
-        isActive 
-          ? "bg-primary text-white" 
-          : "bg-muted hover:bg-muted/80 text-muted-foreground hover:text-white"
-      }`}
-    >
-      <Icon className="w-4 h-4" />
-    </button>
-  );
-
   return (
     <div className="space-y-3">
       <div className="bg-card border border-border rounded-lg p-3 flex flex-wrap gap-1">
-        <ToolButton
+        <button
           onClick={() => editor.chain().focus().toggleBold().run()}
-          isActive={editor.isActive("bold")}
-          icon={<Bold className="w-4 h-4" />}
+          className={`p-2 rounded transition-colors ${
+            editor.isActive("bold") 
+              ? "bg-primary text-white" 
+              : "bg-muted hover:bg-muted/80 text-muted-foreground hover:text-white"
+          }`}
           title="Negrito"
-        />
-        <ToolButton
+        >
+          <Bold className="w-4 h-4" />
+        </button>
+        
+        <button
           onClick={() => editor.chain().focus().toggleItalic().run()}
-          isActive={editor.isActive("italic")}
-          icon={<Italic className="w-4 h-4" />}
+          className={`p-2 rounded transition-colors ${
+            editor.isActive("italic") 
+              ? "bg-primary text-white" 
+              : "bg-muted hover:bg-muted/80 text-muted-foreground hover:text-white"
+          }`}
           title="Itálico"
-        />
-        <ToolButton
+        >
+          <Italic className="w-4 h-4" />
+        </button>
+        
+        <button
           onClick={() => editor.chain().focus().toggleCodeBlock().run()}
-          isActive={editor.isActive("codeBlock")}
-          icon={<Code className="w-4 h-4" />}
+          className={`p-2 rounded transition-colors ${
+            editor.isActive("codeBlock") 
+              ? "bg-primary text-white" 
+              : "bg-muted hover:bg-muted/80 text-muted-foreground hover:text-white"
+          }`}
           title="Bloco de Código"
-        />
+        >
+          <Code className="w-4 h-4" />
+        </button>
         
         <div className="w-px bg-border mx-1" />
         
-        <ToolButton
+        <button
           onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
-          isActive={editor.isActive("heading", { level: 1 })}
-          icon={<Heading1 className="w-4 h-4" />}
+          className={`p-2 rounded transition-colors ${
+            editor.isActive("heading", { level: 1 }) 
+              ? "bg-primary text-white" 
+              : "bg-muted hover:bg-muted/80 text-muted-foreground hover:text-white"
+          }`}
           title="Título 1"
-        />
-        <ToolButton
+        >
+          <Heading1 className="w-4 h-4" />
+        </button>
+        
+        <button
           onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
-          isActive={editor.isActive("heading", { level: 2 })}
-          icon={<Heading2 className="w-4 h-4" />}
+          className={`p-2 rounded transition-colors ${
+            editor.isActive("heading", { level: 2 }) 
+              ? "bg-primary text-white" 
+              : "bg-muted hover:bg-muted/80 text-muted-foreground hover:text-white"
+          }`}
           title="Título 2"
-        />
+        >
+          <Heading2 className="w-4 h-4" />
+        </button>
         
         <div className="w-px bg-border mx-1" />
         
-        <ToolButton
+        <button
           onClick={() => editor.chain().focus().toggleBulletList().run()}
-          isActive={editor.isActive("bulletList")}
-          icon={<List className="w-4 h-4" />}
+          className={`p-2 rounded transition-colors ${
+            editor.isActive("bulletList") 
+              ? "bg-primary text-white" 
+              : "bg-muted hover:bg-muted/80 text-muted-foreground hover:text-white"
+          }`}
           title="Lista"
-        />
-        <ToolButton
+        >
+          <List className="w-4 h-4" />
+        </button>
+        
+        <button
           onClick={() => editor.chain().focus().toggleOrderedList().run()}
-          isActive={editor.isActive("orderedList")}
-          icon={<ListOrdered className="w-4 h-4" />}
+          className={`p-2 rounded transition-colors ${
+            editor.isActive("orderedList") 
+              ? "bg-primary text-white" 
+              : "bg-muted hover:bg-muted/80 text-muted-foreground hover:text-white"
+          }`}
           title="Lista Numerada"
-        />
-        <ToolButton
+        >
+          <ListOrdered className="w-4 h-4" />
+        </button>
+        
+        <button
           onClick={() => editor.chain().focus().toggleBlockquote().run()}
-          isActive={editor.isActive("blockquote")}
-          icon={<Quote className="w-4 h-4" />}
+          className={`p-2 rounded transition-colors ${
+            editor.isActive("blockquote") 
+              ? "bg-primary text-white" 
+              : "bg-muted hover:bg-muted/80 text-muted-foreground hover:text-white"
+          }`}
           title="Citação"
-        />
+        >
+          <Quote className="w-4 h-4" />
+        </button>
         
         <div className="w-px bg-border mx-1" />
         
-        <ToolButton
+        <button
           onClick={() => {
             const url = prompt("URL:");
             if (url) editor.chain().focus().extendMarkRange("link").setLink({ href: url }).run();
           }}
-          isActive={editor.isActive("link")}
-          icon={<LinkIcon className="w-4 h-4" />}
+          className={`p-2 rounded transition-colors ${
+            editor.isActive("link") 
+              ? "bg-primary text-white" 
+              : "bg-muted hover:bg-muted/80 text-muted-foreground hover:text-white"
+          }`}
           title="Link"
-        />
+        >
+          <LinkIcon className="w-4 h-4" />
+        </button>
         
         <div className="w-px bg-border mx-1" />
         
-        <ToolButton
+        <button
           onClick={() => editor.chain().focus().undo().run()}
-          isActive={false}
-          icon={<Undo2 className="w-4 h-4" />}
+          className="p-2 rounded transition-colors bg-muted hover:bg-muted/80 text-muted-foreground hover:text-white"
           title="Desfazer"
-        />
-        <ToolButton
+        >
+          <Undo2 className="w-4 h-4" />
+        </button>
+        
+        <button
           onClick={() => editor.chain().focus().redo().run()}
-          isActive={false}
-          icon={<Redo2 className="w-4 h-4" />}
+          className="p-2 rounded transition-colors bg-muted hover:bg-muted/80 text-muted-foreground hover:text-white"
           title="Refazer"
-        />
+        >
+          <Redo2 className="w-4 h-4" />
+        </button>
       </div>
       
       <EditorContent editor={editor} />
