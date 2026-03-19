@@ -4,6 +4,7 @@ import { useListSources, useFetchFromSource, useTranslateArticle } from "@/hooks
 import { useCreateArticle } from "@/hooks/use-articles";
 import { DownloadCloud, Globe, Languages, Plus, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { AdminLayout } from "@/components/layout/AdminLayout";
 
 export default function AdminImport() {
   const { data: sources, isLoading: loadingSources } = useListSources();
@@ -182,7 +183,7 @@ export default function AdminImport() {
             </div>
           </div>
         </div>
-      </main>
+      </AdminLayout>
     </div>
   );
 }

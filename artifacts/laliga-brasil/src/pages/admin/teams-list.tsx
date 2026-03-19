@@ -1,11 +1,11 @@
 import React, { useState } from "react";
-import { Link, useLocation } from "wouter";
+import { Link } from "wouter";
 import { useAdminListTeams } from "@/hooks/use-teams";
 import { Shield, Edit, MapPin, Building2, Archive, Search, Trophy } from "lucide-react";
+import { AdminLayout } from "@/components/layout/AdminLayout";
 
 export default function AdminTeamsList() {
   const { data: teams, isLoading } = useAdminListTeams();
-  const [, setLocation] = useLocation();
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"all" | "active" | "archived">("active");
 
@@ -16,16 +16,8 @@ export default function AdminTeamsList() {
   });
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <header className="sticky top-0 z-10 bg-card border-b border-border py-4 px-6 flex items-center gap-4 shadow-lg">
-        <Link href="/dashboard" className="text-muted-foreground hover:text-white transition-colors text-sm">← Dashboard</Link>
-        <span className="text-muted-foreground">/</span>
-        <h1 className="text-xl font-bold uppercase tracking-tight flex items-center gap-2">
-          <Shield className="text-primary w-5 h-5" /> Clubes
-        </h1>
-      </header>
-
-      <main className="container mx-auto px-4 py-8 max-w-6xl">
+    <AdminLayout>
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Filters */}
         <div className="flex flex-col sm:flex-row gap-3 mb-8">
           <div className="relative flex-1 max-w-xs">
@@ -122,7 +114,7 @@ export default function AdminTeamsList() {
             <p>Nenhum clube encontrado.</p>
           </div>
         )}
-      </main>
-    </div>
+      </div>
+    </AdminLayout>
   );
 }

@@ -1,9 +1,10 @@
 import React, { useState } from "react";
 import { Link } from "wouter";
 import { useAdminListArticles, useDeleteArticle } from "@/hooks/use-articles";
-import { Edit3, Search, Trash2, ExternalLink, Plus } from "lucide-react";
+import { Search, Plus } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
+import { AdminLayout } from "@/components/layout/AdminLayout";
 
 export default function AdminArticlesList() {
   const [search, setSearch] = useState("");
@@ -24,8 +25,8 @@ export default function AdminArticlesList() {
   };
 
   return (
-    <div className="min-h-screen flex bg-background">
-      <main className="flex-1 p-8">
+    <AdminLayout>
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <header className="flex justify-between items-center mb-8">
           <div>
             <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
@@ -115,7 +116,7 @@ export default function AdminArticlesList() {
             </div>
           )}
         </div>
-      </main>
-    </div>
+      </div>
+    </AdminLayout>
   );
 }

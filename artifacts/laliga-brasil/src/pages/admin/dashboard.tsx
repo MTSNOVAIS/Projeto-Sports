@@ -1,56 +1,9 @@
 import React from "react";
-import { Link, useLocation } from "wouter";
+import { Link } from "wouter";
 import { useGetSiteStats } from "@/hooks/use-system";
-import { FileText, Users, Eye, Edit3, Settings, LogOut, CheckCircle, Clock } from "lucide-react";
+import { Eye, Edit3, CheckCircle, Clock } from "lucide-react";
 import { format, parseISO } from "date-fns";
-
-function AdminSidebar() {
-  const [location] = useLocation();
-  
-  const links = [
-    { href: "/dashboard", label: "Visão Geral", icon: <Eye className="w-5 h-5" /> },
-    { href: "/dashboard/artigos", label: "Artigos", icon: <FileText className="w-5 h-5" /> },
-    { href: "/dashboard/importar", label: "Importar Matérias", icon: <LogOut className="w-5 h-5 rotate-90" /> },
-    { href: "/dashboard/times", label: "Times", icon: <Users className="w-5 h-5" /> },
-  ];
-
-  return (
-    <aside className="w-64 bg-card border-r border-border hidden md:flex flex-col min-h-screen sticky top-0">
-      <div className="p-6 border-b border-border">
-        <Link href="/" className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-primary rounded flex items-center justify-center text-white font-display font-black">
-            LL
-          </div>
-          <span className="font-display font-black text-xl tracking-tighter">
-            ADMIN
-          </span>
-        </Link>
-      </div>
-      <nav className="flex-1 p-4 space-y-1">
-        {links.map(link => {
-          const active = location === link.href || (link.href !== "/dashboard" && location.startsWith(link.href));
-          return (
-            <Link 
-              key={link.href} 
-              href={link.href}
-              className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
-                active ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-white/5 hover:text-white"
-              }`}
-            >
-              {link.icon}
-              {link.label}
-            </Link>
-          );
-        })}
-      </nav>
-      <div className="p-4 border-t border-border">
-        <button className="flex items-center gap-3 px-4 py-3 w-full rounded-lg text-sm font-medium text-muted-foreground hover:bg-white/5 hover:text-white transition-colors">
-          <Settings className="w-5 h-5" /> Configurações
-        </button>
-      </div>
-    </aside>
-  );
-}
+import { AdminLayout } from "@/components/layout/AdminLayout";
 
 function StatCard({ title, value, icon, trend }: { title: string, value: number, icon: React.ReactNode, trend?: string }) {
   return (
@@ -69,9 +22,8 @@ export default function AdminDashboard() {
   const { data: stats, isLoading } = useGetSiteStats();
 
   return (
-    <div className="min-h-screen flex bg-background">
-      <AdminSidebar />
-      <main className="flex-1 p-8">
+    <AdminLayout>
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <header className="flex justify-between items-center mb-8">
           <div>
             <h1 className="text-3xl font-display font-bold text-white">Visão Geral</h1>
@@ -140,7 +92,7 @@ export default function AdminDashboard() {
             </div>
           </div>
         ) : null}
-      </main>
-    </div>
+      </div>
+    </AdminLayout>
   );
 }

@@ -6,6 +6,7 @@ import { CustomDateTimePicker } from "@/components/ui/custom-datetime-picker";
 import { ArrowLeft, Save, Send, Image as ImageIcon } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { CreateArticleRequestStatus, CreateArticleRequest } from "@workspace/api-client-react";
+import { AdminLayout } from "@/components/layout/AdminLayout";
 
 export default function AdminArticleEditor() {
   const [, setLocation] = useLocation();
@@ -89,9 +90,10 @@ export default function AdminArticleEditor() {
   if (isEditing && loadingArticle) return <div className="p-12 text-center text-white">Carregando editor...</div>;
 
   return (
-    <div className="min-h-screen bg-background text-foreground pb-20">
-      <header className="sticky top-0 z-10 bg-card border-b border-border py-4 px-6 flex justify-between items-center shadow-lg">
-        <div className="flex items-center gap-4">
+    <AdminLayout>
+      <div className="min-h-full bg-background text-foreground pb-20">
+        <div className="sticky top-0 z-10 bg-card border-b border-border py-4 px-6 flex justify-between items-center shadow-lg">
+          <div className="flex items-center gap-4">
           <button onClick={() => setLocation("/dashboard/artigos")} className="w-8 h-8 flex items-center justify-center rounded-full bg-muted hover:bg-primary hover:text-white transition-colors">
             <ArrowLeft className="w-4 h-4" />
           </button>
@@ -117,10 +119,10 @@ export default function AdminArticleEditor() {
           >
             <Send className="w-4 h-4" /> Publicar Agora
           </button>
+          </div>
         </div>
-      </header>
 
-      <main className="container mx-auto px-4 max-w-6xl mt-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <main className="container mx-auto px-4 max-w-6xl mt-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-6">
           <div className="bg-card p-6 rounded-xl border border-border shadow-sm space-y-5">
             <div>
@@ -237,7 +239,7 @@ export default function AdminArticleEditor() {
              </div>
           )}
         </div>
-      </main>
-    </div>
+      </div>
+    </AdminLayout>
   );
 }

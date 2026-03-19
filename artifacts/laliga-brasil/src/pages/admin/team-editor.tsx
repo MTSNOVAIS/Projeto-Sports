@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from "react";
-import { useRoute, Link, useLocation } from "wouter";
+import { useRoute, Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import {
   Shield, Save, Archive, ArchiveRestore, Plus, Trash2,
   ChevronLeft, MapPin, Building2, Calendar, Palette,
   Link as LinkIcon, Trophy, AlertTriangle, Check, Image
 } from "lucide-react";
+import { AdminLayout } from "@/components/layout/AdminLayout";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -149,9 +150,10 @@ export default function AdminTeamEditor() {
   const totalTitles = team.titles.reduce((s, t) => s + (Number(t.count) || 0), 0);
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      {/* Header */}
-      <header className="sticky top-0 z-20 bg-card border-b border-border px-6 py-3 flex items-center justify-between shadow-lg">
+    <AdminLayout>
+      <div className="min-h-full bg-background text-foreground">
+        {/* Header */}
+        <div className="sticky top-20 z-10 bg-card border-b border-border px-6 py-3 flex items-center justify-between shadow-lg">
         <div className="flex items-center gap-3">
           <Link href="/dashboard/times" className="text-muted-foreground hover:text-white transition-colors">
             <ChevronLeft className="w-5 h-5" />
@@ -188,9 +190,9 @@ export default function AdminTeamEditor() {
             Salvar
           </button>
         </div>
-      </header>
+        </div>
 
-      <div className="container mx-auto px-4 py-8 max-w-5xl">
+        <div className="container mx-auto px-4 py-8 max-w-5xl">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
 
           {/* Left column — identity */}
@@ -443,6 +445,7 @@ export default function AdminTeamEditor() {
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </AdminLayout>
   );
 }
