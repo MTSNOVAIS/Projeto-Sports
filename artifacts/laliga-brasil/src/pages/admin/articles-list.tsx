@@ -34,7 +34,7 @@ export default function AdminArticlesList() {
             </div>
             <h1 className="text-3xl font-display font-bold text-white">Gerenciar Artigos</h1>
           </div>
-          <Link href="/dashboard/artigos/novo" className="bg-primary hover:bg-accent text-white px-5 py-2.5 rounded-lg font-bold flex items-center gap-2 transition-colors shadow-lg shadow-primary/20">
+          <Link href="/dashboard/artigos/new" className="bg-primary hover:bg-accent text-white px-5 py-2.5 rounded-lg font-bold flex items-center gap-2 transition-colors shadow-lg shadow-primary/20">
             <Plus className="w-4 h-4" /> Escrever Novo
           </Link>
         </header>
