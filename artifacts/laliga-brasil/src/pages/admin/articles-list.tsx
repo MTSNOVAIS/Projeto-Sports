@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Link } from "wouter";
 import { useAdminListArticles, useDeleteArticle } from "@/hooks/use-articles";
-import { Search, Plus } from "lucide-react";
+import { Search, Plus, Edit3, ExternalLink, Trash2 } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { AdminLayout } from "@/components/layout/AdminLayout";
