@@ -4,7 +4,7 @@ import { ArticleCard } from "@/components/shared/ArticleCard";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { Link } from "wouter";
-import { AlertCircle, Flame, Trophy, Shield } from "lucide-react";
+import { AlertCircle, Flame } from "lucide-react";
 import { motion } from "framer-motion";
 
 export default function Home() {
@@ -42,22 +42,6 @@ export default function Home() {
       )}
 
       <main className="flex-grow">
-        {/* Teams Shortcut Bar */}
-        <div className="border-b border-border bg-card/50">
-          <div className="container mx-auto px-4">
-            <div className="flex overflow-x-auto py-3 gap-6 hide-scrollbar items-center justify-start md:justify-center">
-              {['Real Madrid', 'Barcelona', 'Atlético Madrid', 'Sevilla', 'Real Sociedad', 'Athletic Club', 'Betis'].map(team => (
-                <Link key={team} href={`/times/${team.toLowerCase().replace(' ', '-')}`} className="text-xs font-bold uppercase text-muted-foreground hover:text-primary whitespace-nowrap transition-colors flex items-center gap-2">
-                  <Shield className="w-3 h-3" /> {team}
-                </Link>
-              ))}
-              <Link href="/times" className="text-xs font-bold uppercase text-white whitespace-nowrap ml-4 border border-white/20 px-3 py-1 rounded-full hover:bg-white hover:text-black transition-colors">
-                Todos os Times
-              </Link>
-            </div>
-          </div>
-        </div>
-
         <div className="container mx-auto px-4 py-8 sm:py-12">
           
           {isLoading ? (
