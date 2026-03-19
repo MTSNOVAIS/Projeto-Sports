@@ -9,88 +9,194 @@ const openai = new OpenAI({
   apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
 });
 
-// Simple translation dictionary for common Spanish football terms
+// Comprehensive Spanish to Portuguese football translation dictionary
 const translationDict: Record<string, string> = {
+  // Teams
   "Real Madrid": "Real Madrid",
-  "Barcelona": "Barcelona",
+  "Barcelona": "Barcelona", 
   "Atlético Madrid": "Atlético Madrid",
-  "el equipo": "o time",
-  "la competición": "a competição",
+  "Aston Villa": "Aston Villa",
+  "Manchester": "Manchester",
+  "Liverpool": "Liverpool",
+  "Arsenal": "Arsenal",
+  "Chelsea": "Chelsea",
+  
+  // Common verbs
   "ha vencido": "venceu",
-  "en los dos partidos": "nos dois jogos",
-  "francés": "francês",
-  "en la vuelta": "no confronto de volta",
-  "Villa Park": "Villa Park",
-  "goles": "gols",
+  "han vencido": "venceram",
+  "vencido": "vencido",
+  "ganado": "ganhou",
+  "ha ganado": "ganhou",
+  "marcó": "marcou",
+  "ha marcado": "marcou",
+  "jugó": "jogou",
+  "ha jugado": "jogou",
+  "está jugando": "está jogando",
+  "sigue": "segue",
+  "continúa": "continua",
+  "será": "será",
+  "podría": "poderia",
+  "puede": "pode",
+  
+  // Common nouns
   "equipo": "time",
-  "jugador": "jogador",
-  "jugadores": "jogadores",
+  "equipos": "times",
+  "el equipo": "o time",
+  "los equipos": "os times",
+  "la competición": "a competição",
+  "competición": "competição",
   "partido": "partida",
   "partidos": "partidas",
-  "victoria": "vitória",
-  "derrota": "derrota",
-  "empate": "empate",
+  "los partidos": "as partidas",
   "gol": "gol",
-  "portero": "goleiro",
-  "defensa": "zagueiro",
-  "delantero": "atacante",
-  "centrocampista": "meia",
+  "goles": "gols",
+  "los goles": "os gols",
+  "victoria": "vitória",
+  "victorias": "vitórias",
+  "derrota": "derrota",
+  "derrotas": "derrotas",
+  "empate": "empate",
+  "jugador": "jogador",
+  "jugadores": "jogadores",
+  "el jugador": "o jogador",
+  "los jugadores": "os jogadores",
+  "técnico": "técnico",
   "entrenador": "técnico",
+  "portero": "goleiro",
+  "porteros": "goleiros",
+  "defensa": "zagueiro",
+  "defensas": "zagueiros",
+  "delantero": "atacante",
+  "delanteros": "atacantes",
+  "centrocampista": "meia",
+  "centrocampistas": "meias",
+  "árbitro": "árbitro",
+  "árbitros": "árbitros",
+  "entrenador": "técnico",
+  "director técnico": "técnico",
+  
+  // Phases and tournaments
+  "fase de grupos": "fase de grupos",
+  "fase de liguilla": "fase de grupos",
+  "eliminatoria": "mata-mata",
+  "semifinal": "semifinal",
+  "final": "final",
+  "vuelta": "confronto de volta",
+  "ida": "primeira mão",
+  "primera mano": "primeira mão",
+  "segunda mano": "segunda mão",
+  
+  // Leagues and competitions
   "liga": "liga",
-  "copa": "copa",
+  "La Liga": "La Liga",
+  "Copa": "Copa",
+  "Copa del Rey": "Copa do Rei",
+  "Supercopa": "Supercopa",
+  "Champions": "Champions",
+  "Europa League": "Europa League",
   "europeo": "europeu",
   "nacional": "nacional",
   "internacional": "internacional",
-  "semifinal": "semifinal",
-  "final": "final",
-  "fase de grupos": "fase de grupos",
-  "eliminatoria": "mata-mata",
-  "penalti": "pênalti",
-  "fuera de juego": "impedimento",
+  
+  // Cards and fouls
   "tarjeta roja": "cartão vermelho",
   "tarjeta amarilla": "cartão amarelo",
-  "árbitro": "árbitro"
+  "roja": "vermelho",
+  "amarilla": "amarelo",
+  "penalti": "pênalti",
+  "penal": "pênalti",
+  "fuera de juego": "impedimento",
+  
+  // Actions
+  "marcó": "marcou",
+  "anotó": "marcou",
+  "metiló gol": "marcou",
+  "pateó": "chutou",
+  "regatea": "dribleia",
+  "pase": "passe",
+  "ataque": "ataque",
+  "defensa": "defesa",
+  "tiro": "chute",
+  "tiros": "chutes",
+  
+  // Locations
+  "cancha": "campo",
+  "campo": "campo",
+  "estadio": "estádio",
+  "villa": "villa",
+  "Park": "Park",
+  "francés": "francês",
+  "francesa": "francesa",
+  "inglés": "inglês",
+  "inglesa": "inglesa",
+  "español": "espanhol",
+  "española": "espanhola",
+  "brasileño": "brasileiro",
+  "brasileña": "brasileira",
+  
+  // Numbers and ordinals
+  "primero": "primeiro",
+  "segunda": "segunda",
+  "tercero": "terceiro",
+  "1-0": "1-0",
+  "2-0": "2-0",
+  "0-1": "0-1",
+  "0-2": "0-2",
+  
+  // Other
+  "él": "ele",
+  "ella": "ela",
+  "ellos": "eles",
+  "ellas": "elas",
+  "su": "seu",
+  "sus": "seus",
+  "en": "em",
+  "de": "de",
+  "el": "o",
+  "la": "a",
+  "los": "os",
+  "las": "as"
 };
 
-// Translate article to Brazilian Portuguese using free API
+// Translate using local dictionary (no external API needed)
+function translateText(text: string): string {
+  if (!text) return text;
+  
+  let translated = text;
+  
+  // Apply translations from dictionary (case-insensitive)
+  // Sort by length DESC to translate longer phrases first
+  const entries = Object.entries(translationDict).sort((a, b) => b[0].length - a[0].length);
+  
+  for (const [spanish, portuguese] of entries) {
+    // Create a regex that matches the word with proper escaping
+    // Match whole words only (surrounded by spaces, punctuation, or start/end)
+    const escaped = spanish.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const regex = new RegExp(`\\b${escaped}\\b|\\b${escaped}(?=[.,!?;:])|(?<=[\\s(])${escaped}\\b`, 'gi');
+    translated = translated.replace(regex, match => {
+      // Preserve case pattern
+      if (match[0] === match[0].toUpperCase() && spanish[0] === spanish[0].toLowerCase()) {
+        return portuguese.charAt(0).toUpperCase() + portuguese.slice(1);
+      }
+      return portuguese;
+    });
+  }
+  
+  return translated;
+}
+
+// Translate article to Brazilian Portuguese (currently keeping in Spanish, awaiting translation API)
 async function translateArticle(title: string, content: string, sourceName: string, sourceLanguage: string = "es"): Promise<{ title: string; content: string; excerpt: string }> {
   if (!title || !content) return { title, content, excerpt: "" };
   
   try {
-    // For English articles, just generate excerpt
-    if (sourceLanguage === "en") {
-      const excerpt = generateExcerpt(content);
-      return { title, content, excerpt };
-    }
-
-    // Translate using MyMemory API (free, no auth needed)
-    const translateText = async (text: string): Promise<string> => {
-      try {
-        // Encode text for URL
-        const encoded = encodeURIComponent(text.substring(0, 4500)); // API has limits
-        const response = await fetch(
-          `https://api.mymemory.translated.net/get?q=${encoded}&langpair=es|pt-BR`,
-          { timeout: 5000 }
-        );
-        const data = await response.json();
-        return data?.responseData?.translatedText || text;
-      } catch {
-        return text; // Return original if translation fails
-      }
-    };
-
-    // Translate title and content in parallel
-    const [translatedTitle, translatedContent] = await Promise.all([
-      translateText(title),
-      translateText(content)
-    ]);
-
-    // Generate excerpt from translated content
-    const excerpt = generateExcerpt(translatedContent);
+    // For now, keep in original language but ensure excerpt is generated
+    // TODO: Implement translation once MyMemory API is available again
+    const excerpt = generateExcerpt(content);
     
     return {
-      title: translatedTitle,
-      content: translatedContent,
+      title,
+      content,
       excerpt
     };
   } catch (err) {
