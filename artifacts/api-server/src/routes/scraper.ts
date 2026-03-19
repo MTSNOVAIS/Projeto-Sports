@@ -194,6 +194,53 @@ router.get("/scraper/sources", async (_req, res): Promise<void> => {
   res.json(NEWS_SOURCES);
 });
 
+// Fetch articles from all sources and return as a unified timeline
+router.post("/scraper/fetch-all", async (req, res): Promise<void> => {
+  const { maxArticles = 5 } = req.body;
+
+  try {
+    const allArticles: any[] = [];
+
+    // Fetch from all active RSS sources in parallel
+    const fetchPromises = NEWS_SOURCES
+      .filter(s => s.type === "rss" && s.active)
+      .map(async (source) => {
+        try {
+          const rawArticles = await fetchRssFeed(source.rssFeed!);
+          return rawArticles.slice(0, maxArticles).map((article: any) => ({
+            title: article.title || "",
+            excerpt: article.description || "",
+            content: article.description || "",
+            coverImage: article.image || null,
+            originalUrl: article.link || "",
+            sourceName: source.name,
+            sourceLanguage: source.language,
+            publishedAt: article.pubDate || new Date().toISOString(),
+          }));
+        } catch (err) {
+          console.error(`Error fetching from ${source.name}:`, err);
+          return [];
+        }
+      });
+
+    const results = await Promise.all(fetchPromises);
+    results.forEach(articles => allArticles.push(...articles));
+
+    // Sort by date descending
+    allArticles.sort((a, b) => 
+      new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()
+    );
+
+    res.json({
+      articles: allArticles,
+      total: allArticles.length,
+    });
+  } catch (err) {
+    console.error("Error fetching all articles:", err);
+    res.status(500).json({ error: "Failed to fetch articles" });
+  }
+});
+
 router.post("/scraper/fetch", async (req, res): Promise<void> => {
   const { sourceId, maxArticles = 10, autoImport = false } = req.body;
 
@@ -226,109 +273,20 @@ router.post("/scraper/fetch", async (req, res): Promise<void> => {
     return;
   }
 
-  const articlesToProcess = rawArticles.slice(0, maxArticles).map((article: any) => ({
-    originalTitle: article.originalTitle || article.title,
-    originalContent: article.originalContent || article.description || "",
-    originalExcerpt: article.originalExcerpt || article.description || "",
-    originalUrl: article.originalUrl || article.link || "",
-    coverImage: article.coverImage || article.image || null,
-    publishedAt: article.publishedAt || article.pubDate || new Date().toISOString(),
+  const articles = rawArticles.slice(0, maxArticles).map((article: any) => ({
+    title: article.title || "",
+    excerpt: article.description || "",
+    content: article.description || "",
+    originalUrl: article.link || "",
+    sourceName: source.name,
+    coverImage: article.image || null,
+    publishedAt: article.pubDate || new Date().toISOString(),
   }));
 
-  const translatedArticles = await Promise.all(
-    articlesToProcess.map(async (raw) => {
-      try {
-        const isEnglish = source.language === "en";
-        const prompt = isEnglish
-          ? `Translate and adapt the following football article from English to Brazilian Portuguese. The article is from ${source.name}. Adapt cultural references and football terminology to Brazilian context. Return a JSON with keys: title, excerpt, content.
-
-Title: ${raw.originalTitle}
-Excerpt: ${raw.originalExcerpt}
-Content: ${raw.originalContent}`
-          : `Translate and adapt the following football article from Spanish to Brazilian Portuguese. The article is from ${source.name}. Adapt cultural references and football terminology to Brazilian context. Return a JSON with keys: title, excerpt, content.
-
-Title: ${raw.originalTitle}
-Excerpt: ${raw.originalExcerpt}
-Content: ${raw.originalContent}`;
-
-        const completion = await openai.chat.completions.create({
-          model: "gpt-5-mini",
-          messages: [
-            {
-              role: "system",
-              content: "You are a professional sports journalist who translates football articles to Brazilian Portuguese. Always return valid JSON only, no markdown.",
-            },
-            { role: "user", content: prompt },
-          ],
-          max_completion_tokens: 2000,
-        });
-
-        const responseText = completion.choices[0]?.message?.content || "{}";
-        let parsed;
-        try {
-          parsed = JSON.parse(responseText);
-        } catch {
-          parsed = { title: raw.originalTitle, excerpt: raw.originalExcerpt, content: raw.originalContent };
-        }
-
-        const article = {
-          title: parsed.title || raw.originalTitle,
-          originalTitle: raw.originalTitle,
-          excerpt: parsed.excerpt || raw.originalExcerpt,
-          content: parsed.content || raw.originalContent,
-          originalUrl: raw.originalUrl,
-          sourceName: source.name,
-          coverImage: raw.coverImage,
-          publishedAt: raw.publishedAt,
-          imported: false,
-        };
-
-        if (autoImport) {
-          try {
-            await db.insert(articlesTable).values({
-              title: article.title,
-              slug: article.title.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9\s-]/g, "").replace(/\s+/g, "-") + "-" + Date.now().toString(36),
-              excerpt: article.excerpt,
-              content: article.content,
-              status: "draft",
-              featured: false,
-              breakingNews: false,
-              category: "Internacional",
-              authorName: `Via ${source.name}`,
-              sourceUrl: article.originalUrl,
-              sourceName: source.name,
-              publishedAt: null,
-            }).onConflictDoNothing();
-
-            return { ...article, imported: true };
-          } catch (dbErr) {
-            console.error("Database insert error:", dbErr);
-            return article;
-          }
-        }
-
-        return article;
-      } catch (err) {
-        console.error("Translation error:", err);
-        return {
-          title: raw.originalTitle,
-          originalTitle: raw.originalTitle,
-          excerpt: raw.originalExcerpt,
-          content: raw.originalContent,
-          originalUrl: raw.originalUrl,
-          sourceName: source.name,
-          coverImage: raw.coverImage,
-          publishedAt: raw.publishedAt,
-          imported: false,
-        };
-      }
-    })
-  );
-
   res.json({
-    articles: translatedArticles,
-    imported: translatedArticles.filter(a => a.imported).length,
-    total: translatedArticles.length,
+    articles: articles,
+    imported: 0,
+    total: articles.length,
     source: source.name,
   });
 });
