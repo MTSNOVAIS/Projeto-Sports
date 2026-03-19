@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Link } from "wouter";
-import { Search, Plus, Trash2, Edit2 } from "lucide-react";
+import { Search, Plus, Trash2, Edit2, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 
@@ -35,6 +35,8 @@ export default function AdminUsersList() {
   ]);
   const [showNewUserForm, setShowNewUserForm] = useState(false);
   const [newUser, setNewUser] = useState({ email: "", name: "", password: "", role: "editor" as const });
+  const [editingUserId, setEditingUserId] = useState<string | null>(null);
+  const [editedUser, setEditedUser] = useState<AdminUser | null>(null);
   const { toast } = useToast();
 
   const filteredUsers = users.filter(
@@ -63,6 +65,44 @@ export default function AdminUsersList() {
     setNewUser({ email: "", name: "", password: "", role: "editor" });
     setShowNewUserForm(false);
     toast({ title: "Sucesso", description: "Usuário criado com sucesso." });
+  };
+
+  const handleEditUser = (user: AdminUser) => {
+    setEditingUserId(user.id);
+    setEditedUser({ ...user });
+  };
+
+  const handleSaveEdit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editedUser || !editedUser.name || !editedUser.email) {
+      toast({ title: "Erro", description: "Nome e email são obrigatórios.", variant: "destructive" });
+      return;
+    }
+
+    setUsers(users.map((u) => (u.id === editingUserId ? editedUser : u)));
+    setEditingUserId(null);
+    setEditedUser(null);
+    toast({ title: "Sucesso", description: "Usuário atualizado com sucesso." });
+  };
+
+  const handleCancelEdit = () => {
+    setEditingUserId(null);
+    setEditedUser(null);
+  };
+
+  const handleToggleStatus = (userId: string) => {
+    setUsers(
+      users.map((u) =>
+        u.id === userId ? { ...u, active: !u.active } : u
+      )
+    );
+    const user = users.find((u) => u.id === userId);
+    if (user) {
+      toast({
+        title: "Sucesso",
+        description: `Usuário ${user.active ? "desativado" : "ativado"} com sucesso.`,
+      });
+    }
   };
 
   const handleDeleteUser = (id: string) => {
@@ -178,6 +218,96 @@ export default function AdminUsersList() {
           </div>
         )}
 
+        {/* Modal de Edição */}
+        {editingUserId && editedUser && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-card rounded-xl border border-border p-6 w-full max-w-md">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-lg font-bold text-white">Editar Usuário</h2>
+                <button
+                  onClick={handleCancelEdit}
+                  className="text-gray-400 hover:text-white transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <form onSubmit={handleSaveEdit} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Nome</label>
+                  <input
+                    type="text"
+                    value={editedUser.name}
+                    onChange={(e) => setEditedUser({ ...editedUser, name: e.target.value })}
+                    className="w-full bg-input border border-border rounded-lg px-4 py-2 text-white focus:outline-none focus:border-primary"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Email</label>
+                  <input
+                    type="email"
+                    value={editedUser.email}
+                    onChange={(e) => setEditedUser({ ...editedUser, email: e.target.value })}
+                    className="w-full bg-input border border-border rounded-lg px-4 py-2 text-white focus:outline-none focus:border-primary"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Cargo</label>
+                  <select
+                    value={editedUser.role}
+                    onChange={(e) => setEditedUser({ ...editedUser, role: e.target.value as any })}
+                    className="w-full bg-input border border-border rounded-lg px-4 py-2 text-white focus:outline-none focus:border-primary"
+                  >
+                    <option value="viewer">Visualizador</option>
+                    <option value="editor">Editor</option>
+                    <option value="admin">Administrador</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Status</label>
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => handleToggleStatus(editedUser.id)}
+                      className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors ${
+                        editedUser.active ? "bg-emerald-500" : "bg-gray-600"
+                      }`}
+                    >
+                      <span
+                        className={`inline-block h-6 w-6 transform rounded-full bg-white transition-transform ${
+                          editedUser.active ? "translate-x-7" : "translate-x-1"
+                        }`}
+                      />
+                    </button>
+                    <span className="text-sm text-gray-300">
+                      {editedUser.active ? "Ativo" : "Inativo"}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex gap-2 pt-4">
+                  <button
+                    type="submit"
+                    className="flex-1 bg-primary hover:bg-accent text-white px-4 py-2 rounded-lg font-bold transition-colors"
+                  >
+                    Salvar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleCancelEdit}
+                    className="flex-1 bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-lg font-bold transition-colors"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
         {/* Busca */}
         <div className="bg-card rounded-xl border border-border p-4 mb-6 flex flex-wrap gap-4 items-center justify-between">
           <div className="relative flex-1 max-w-md">
@@ -229,7 +359,11 @@ export default function AdminUsersList() {
                       <td className="px-6 py-4 text-gray-400 text-xs">{user.createdAt}</td>
                       <td className="px-6 py-4">
                         <div className="flex gap-2">
-                          <button className="text-blue-400 hover:text-blue-300 transition-colors" title="Editar">
+                          <button
+                            onClick={() => handleEditUser(user)}
+                            className="text-blue-400 hover:text-blue-300 transition-colors"
+                            title="Editar"
+                          >
                             <Edit2 className="w-4 h-4" />
                           </button>
                           <button
