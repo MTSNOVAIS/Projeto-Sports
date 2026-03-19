@@ -215,9 +215,15 @@ router.post("/scraper/fetch", async (req, res): Promise<void> => {
     rawArticles = await fetchRssFeed(source.rssFeed);
   }
 
-  // Fallback to mock data if no real articles found
+  // Return empty if no real articles found (no fallback to mock data)
   if (rawArticles.length === 0) {
-    rawArticles = MOCK_ARTICLES[sourceId] || [];
+    res.json({
+      articles: [],
+      imported: 0,
+      total: 0,
+      source: source.name,
+    });
+    return;
   }
 
   const articlesToProcess = rawArticles.slice(0, maxArticles).map((article: any) => ({
@@ -324,7 +330,6 @@ Content: ${raw.originalContent}`;
     imported: translatedArticles.filter(a => a.imported).length,
     total: translatedArticles.length,
     source: source.name,
-    realData: rawArticles.length > 0 && !MOCK_ARTICLES[sourceId],
   });
 });
 
