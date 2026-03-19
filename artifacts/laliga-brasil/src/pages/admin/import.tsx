@@ -57,7 +57,7 @@ export default function AdminImport() {
           coverImage: article.coverImage,
           category: "Internacional",
           authorName: article.sourceName,
-          status: "draft",
+          status: "published",
           sourceName: article.sourceName,
           sourceUrl: article.originalUrl,
           featured: false,
@@ -65,7 +65,7 @@ export default function AdminImport() {
         },
       });
 
-      toast({ title: "Sucesso!", description: "Matéria importada como rascunho." });
+      toast({ title: "Sucesso!", description: `Matéria publicada de ${article.sourceName}.` });
       setImportedUrls(prev => new Set([...prev, article.originalUrl]));
     } catch (e: any) {
       toast({ title: "Erro", description: e.message || "Falha na importação.", variant: "destructive" });
