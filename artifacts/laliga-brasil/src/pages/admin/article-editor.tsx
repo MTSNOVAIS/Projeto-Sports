@@ -239,6 +239,7 @@ export default function AdminArticleEditor() {
              </div>
           )}
         </div>
+        </main>
       </div>
     </AdminLayout>
   );
