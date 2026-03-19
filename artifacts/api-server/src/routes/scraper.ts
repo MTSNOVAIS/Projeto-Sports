@@ -4,6 +4,7 @@ import OpenAI from "openai";
 
 const router: IRouter = Router();
 
+// OpenAI client initialized for potential future use (translations, AI features)
 const openai = new OpenAI({
   baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
   apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
@@ -256,12 +257,15 @@ router.post("/scraper/fetch-all", async (req, res): Promise<void> => {
           const rawArticles = await fetchRssFeed(source.rssFeed!);
           return rawArticles.slice(0, maxArticles).map((article: any) => {
             const cleanDescription = stripHtmlTags(article.description || "");
+            const cleanTitle = stripHtmlTags(article.title || "");
+            
             // Excerpt is shorter version for preview (200 chars), content is full
             const excerpt = cleanDescription.length > 200 
               ? cleanDescription.substring(0, 200) + "..."
               : cleanDescription;
+            
             return {
-              title: stripHtmlTags(article.title || ""),
+              title: cleanTitle,
               excerpt: excerpt,
               content: cleanDescription,
               coverImage: article.image || null,
