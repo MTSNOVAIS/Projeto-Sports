@@ -20,6 +20,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
     { href: "/dashboard/importar", label: "Importar" },
     { href: "/dashboard/times", label: "Times" },
     { href: "/dashboard/usuarios", label: "Usuários" },
+    { href: "/dashboard/cargos", label: "Cargos" },
   ];
 
   // Fechar menu ao navegar
