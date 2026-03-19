@@ -32,7 +32,7 @@ export default function AdminImport() {
       
       toast({ 
         title: "Sucesso!", 
-        description: `${res.total} matérias carregadas ${res.realData ? '(dados reais)' : '(dados de demonstração)'}` 
+        description: `${res.total} matérias carregadas` 
       });
     } catch (e) {
       toast({ title: "Erro", description: "Falha ao buscar matérias.", variant: "destructive" });
@@ -136,20 +136,9 @@ export default function AdminImport() {
 
               {/* Status Bar */}
               {fetchStats && (
-                <div className={`px-4 py-3 border-b border-border flex items-center gap-3 ${
-                  fetchStats.realData ? 'bg-emerald-500/5' : 'bg-blue-500/5'
-                }`}>
-                  {fetchStats.realData ? (
-                    <>
-                      <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                      <span className="text-xs font-medium text-emerald-400">Dados reais carregados de {activeSourceData?.name}</span>
-                    </>
-                  ) : (
-                    <>
-                      <AlertCircle className="w-4 h-4 text-blue-400" />
-                      <span className="text-xs font-medium text-blue-400">Usando dados de demonstração</span>
-                    </>
-                  )}
+                <div className="px-4 py-3 border-b border-border flex items-center gap-3 bg-emerald-500/5">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                  <span className="text-xs font-medium text-emerald-400">Matérias carregadas de {activeSourceData?.name}</span>
                 </div>
               )}
 
