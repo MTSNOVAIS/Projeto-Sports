@@ -2,6 +2,8 @@ import { Switch, Route, Router as WouterRouter } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { AuthProvider } from "@/contexts/AuthContext";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
 
 import Home from "@/pages/home";
 import ArticleView from "@/pages/article";
@@ -9,6 +11,7 @@ import TeamsList from "@/pages/teams-list";
 import TeamPage from "@/pages/team";
 import CategoryPage from "@/pages/category";
 import SearchPage from "@/pages/search";
+import LoginPage from "@/pages/login";
 import AdminDashboard from "@/pages/admin/dashboard";
 import AdminArticlesList from "@/pages/admin/articles-list";
 import AdminArticleEditor from "@/pages/admin/article-editor";
@@ -35,14 +38,43 @@ function Router() {
       <Route path="/times/:slug" component={TeamPage} />
       <Route path="/categoria/:category" component={CategoryPage} />
       <Route path="/busca" component={SearchPage} />
+      <Route path="/login" component={LoginPage} />
 
-      <Route path="/dashboard" component={AdminDashboard} />
-      <Route path="/dashboard/artigos" component={AdminArticlesList} />
-      <Route path="/dashboard/artigos/novo" component={AdminArticleEditor} />
-      <Route path="/dashboard/artigos/:id/editar" component={AdminArticleEditor} />
-      <Route path="/dashboard/importar" component={AdminImport} />
-      <Route path="/dashboard/times" component={AdminTeamsList} />
-      <Route path="/dashboard/times/:id" component={AdminTeamEditor} />
+      <Route path="/dashboard">
+        <ProtectedRoute>
+          <AdminDashboard />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/dashboard/artigos">
+        <ProtectedRoute>
+          <AdminArticlesList />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/dashboard/artigos/novo">
+        <ProtectedRoute>
+          <AdminArticleEditor />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/dashboard/artigos/:id/editar">
+        <ProtectedRoute>
+          <AdminArticleEditor />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/dashboard/importar">
+        <ProtectedRoute>
+          <AdminImport />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/dashboard/times">
+        <ProtectedRoute>
+          <AdminTeamsList />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/dashboard/times/:id">
+        <ProtectedRoute>
+          <AdminTeamEditor />
+        </ProtectedRoute>
+      </Route>
 
       <Route component={NotFound} />
     </Switch>
@@ -53,10 +85,12 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-          <Router />
-        </WouterRouter>
-        <Toaster />
+        <AuthProvider>
+          <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+            <Router />
+          </WouterRouter>
+          <Toaster />
+        </AuthProvider>
       </TooltipProvider>
     </QueryClientProvider>
   );
