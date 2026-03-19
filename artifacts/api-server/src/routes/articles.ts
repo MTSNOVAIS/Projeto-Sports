@@ -136,7 +136,7 @@ router.get("/articles/:slug", async (req, res): Promise<void> => {
   })
     .from(articlesTable)
     .leftJoin(teamsTable, eq(articlesTable.teamId, teamsTable.id))
-    .where(and(eq(articlesTable.slug, slug), eq(articlesTable.status, "published")));
+    .where(eq(articlesTable.slug, slug));
 
   if (!article) {
     res.status(404).json({ error: "Article not found" });

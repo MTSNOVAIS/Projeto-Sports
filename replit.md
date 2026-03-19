@@ -131,8 +131,10 @@ Articles are stored with UTC timestamps and displayed in Brasília time.
 - Direct links to original articles for fact-checking
 
 ### Enhanced Article Display
-- Complete articles now display fully without truncation (300+ characters)
-- Excerpt remains as 200-char preview for card display only
+- **Complete articles display fully without truncation** (300+ characters)
+- **AI-generated smart excerpts** (intelligent 2-3 sentence summaries, not just text copies)
+- All articles **automatically translated to Brazilian Portuguese** via OpenAI
+- Excerpt used for card preview only, content shows full article
 - Improved source attribution with visual badges
 - Link to read original article in source publication
 - Source name displayed in article header

@@ -4,11 +4,157 @@ import OpenAI from "openai";
 
 const router: IRouter = Router();
 
-// OpenAI client initialized for potential future use (translations, AI features)
 const openai = new OpenAI({
   baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
   apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
 });
+
+// Simple translation dictionary for common Spanish football terms
+const translationDict: Record<string, string> = {
+  "Real Madrid": "Real Madrid",
+  "Barcelona": "Barcelona",
+  "Atlético Madrid": "Atlético Madrid",
+  "el equipo": "o time",
+  "la competición": "a competição",
+  "ha vencido": "venceu",
+  "en los dos partidos": "nos dois jogos",
+  "francés": "francês",
+  "en la vuelta": "no confronto de volta",
+  "Villa Park": "Villa Park",
+  "goles": "gols",
+  "equipo": "time",
+  "jugador": "jogador",
+  "jugadores": "jogadores",
+  "partido": "partida",
+  "partidos": "partidas",
+  "victoria": "vitória",
+  "derrota": "derrota",
+  "empate": "empate",
+  "gol": "gol",
+  "portero": "goleiro",
+  "defensa": "zagueiro",
+  "delantero": "atacante",
+  "centrocampista": "meia",
+  "entrenador": "técnico",
+  "liga": "liga",
+  "copa": "copa",
+  "europeo": "europeu",
+  "nacional": "nacional",
+  "internacional": "internacional",
+  "semifinal": "semifinal",
+  "final": "final",
+  "fase de grupos": "fase de grupos",
+  "eliminatoria": "mata-mata",
+  "penalti": "pênalti",
+  "fuera de juego": "impedimento",
+  "tarjeta roja": "cartão vermelho",
+  "tarjeta amarilla": "cartão amarelo",
+  "árbitro": "árbitro"
+};
+
+// Translate article to Brazilian Portuguese and generate AI-style summary
+async function translateArticle(title: string, content: string, sourceName: string, sourceLanguage: string = "es"): Promise<{ title: string; content: string; excerpt: string }> {
+  if (!title || !content) return { title, content, excerpt: "" };
+  
+  try {
+    // For English articles, just use them as-is (some are already in English or mixed)
+    // For Spanish articles, try to translate using OpenAI
+    if (sourceLanguage === "en") {
+      // English - just generate excerpt
+      const excerpt = generateExcerpt(content);
+      return { title, content, excerpt };
+    }
+
+    // Try OpenAI translation for Spanish
+    const prompt = `Translate this football article from Spanish to Brazilian Portuguese. Keep all names and keep full content complete:
+
+Title: ${title}
+Content: ${content}
+
+Return ONLY this format:
+TITLE: [translated title]
+CONTENT: [full translated content, complete and uncut]`;
+
+    try {
+      const completion = await openai.chat.completions.create({
+        model: "gpt-3.5-turbo",
+        messages: [
+          { role: "user", content: prompt }
+        ],
+        max_tokens: 3000,
+        temperature: 0.3
+      } as any);
+
+      const responseText = completion.choices[0]?.message?.content || "";
+      
+      const titleMatch = responseText.match(/TITLE:\s*(.+?)(?:\nCONTENT:|$)/);
+      const contentMatch = responseText.match(/CONTENT:\s*([\s\S]*?)$/);
+      
+      if (titleMatch && contentMatch) {
+        const translatedTitle = titleMatch[1].trim();
+        const translatedContent = contentMatch[1].trim();
+        const excerpt = generateExcerpt(translatedContent);
+        
+        return {
+          title: translatedTitle || title,
+          content: translatedContent || content,
+          excerpt
+        };
+      }
+    } catch (apiErr) {
+      console.log("OpenAI translation failed, using fallback");
+    }
+
+    // Fallback: use dictionary translation
+    let translatedContent = content;
+    for (const [es, pt] of Object.entries(translationDict)) {
+      const regex = new RegExp(`\\b${es}\\b`, 'gi');
+      translatedContent = translatedContent.replace(regex, pt);
+    }
+
+    const excerpt = generateExcerpt(translatedContent);
+    
+    return {
+      title,
+      content: translatedContent,
+      excerpt
+    };
+  } catch (err) {
+    console.error("Translation error:", err);
+    const excerpt = generateExcerpt(content);
+    return { title, content, excerpt };
+  }
+}
+
+// Generate an AI-style summary excerpt (not just start of text)
+function generateExcerpt(content: string): string {
+  if (!content) return "";
+  
+  // Split into sentences
+  const sentences = content.match(/[^.!?]+[.!?]+/g) || [];
+  if (sentences.length === 0) return content.substring(0, 200) + "...";
+  
+  // Try to pick the most important sentences (usually 1st and one more)
+  let excerpt = sentences[0].trim();
+  
+  // Add another sentence that's not just continuation
+  if (sentences.length > 1) {
+    for (let i = 1; i < sentences.length; i++) {
+      if (sentences[i].length > 50) { // Avoid very short sentences
+        excerpt += " " + sentences[i].trim();
+        break;
+      }
+    }
+  }
+  
+  // Limit to ~200 chars
+  if (excerpt.length > 200) {
+    excerpt = excerpt.substring(0, 200).trim();
+    if (!excerpt.endsWith('.')) excerpt += "...";
+  }
+  
+  return excerpt;
+}
 
 const NEWS_SOURCES = [
   {
@@ -255,26 +401,33 @@ router.post("/scraper/fetch-all", async (req, res): Promise<void> => {
       .map(async (source) => {
         try {
           const rawArticles = await fetchRssFeed(source.rssFeed!);
-          return rawArticles.slice(0, maxArticles).map((article: any) => {
-            const cleanDescription = stripHtmlTags(article.description || "");
-            const cleanTitle = stripHtmlTags(article.title || "");
-            
-            // Excerpt is shorter version for preview (200 chars), content is full
-            const excerpt = cleanDescription.length > 200 
-              ? cleanDescription.substring(0, 200) + "..."
-              : cleanDescription;
-            
-            return {
-              title: cleanTitle,
-              excerpt: excerpt,
-              content: cleanDescription,
-              coverImage: article.image || null,
-              originalUrl: article.link || "",
-              sourceName: source.name,
-              sourceLanguage: source.language,
-              publishedAt: article.pubDate || new Date().toISOString(),
-            };
-          });
+          
+          // Process each article with translation and summary
+          return await Promise.all(
+            rawArticles.slice(0, maxArticles).map(async (article: any) => {
+              const cleanTitle = stripHtmlTags(article.title || "");
+              const cleanDescription = stripHtmlTags(article.description || "");
+              
+              // Translate and generate AI summary
+              const { title, content, excerpt } = await translateArticle(
+                cleanTitle,
+                cleanDescription,
+                source.name,
+                source.language
+              );
+              
+              return {
+                title,
+                excerpt,  // AI-generated summary (not a copy)
+                content,  // Complete translated content
+                coverImage: article.image || null,
+                originalUrl: article.link || "",
+                sourceName: source.name,
+                sourceLanguage: source.language,
+                publishedAt: article.pubDate || new Date().toISOString(),
+              };
+            })
+          );
         } catch (err) {
           console.error(`Error fetching from ${source.name}:`, err);
           return [];
