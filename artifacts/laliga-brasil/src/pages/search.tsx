@@ -4,7 +4,7 @@ import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { ArticleCard } from "@/components/shared/ArticleCard";
 import { useListArticles } from "@/hooks/use-articles";
-import { Search as SearchIcon, X } from "lucide-react";
+import { Search as SearchIcon, X, ArrowLeft } from "lucide-react";
 import { motion } from "framer-motion";
 
 export default function SearchPage() {
@@ -40,7 +40,16 @@ export default function SearchPage() {
       <main className="flex-grow">
         <div className="bg-card border-b border-border py-10">
           <div className="container mx-auto px-4">
-            <h1 className="text-3xl font-black uppercase tracking-tight text-white mb-6">Busca</h1>
+            <div className="flex items-center gap-4 mb-6">
+              <button 
+                onClick={() => window.history.back()}
+                className="p-2 text-muted-foreground hover:text-white hover:bg-white/10 rounded-lg transition-colors"
+                title="Voltar à página anterior"
+              >
+                <ArrowLeft className="w-6 h-6" />
+              </button>
+              <h1 className="text-3xl font-black uppercase tracking-tight text-white">Busca</h1>
+            </div>
             <div className="relative max-w-2xl">
               <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
               <input
