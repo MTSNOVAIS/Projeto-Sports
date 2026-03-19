@@ -19,6 +19,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
     { href: "/dashboard/artigos", label: "Artigos" },
     { href: "/dashboard/importar", label: "Importar" },
     { href: "/dashboard/times", label: "Times" },
+    { href: "/dashboard/usuarios", label: "Usuários" },
   ];
 
   // Fechar menu ao navegar

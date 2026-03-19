@@ -18,6 +18,7 @@ import AdminArticleEditor from "@/pages/admin/article-editor";
 import AdminImport from "@/pages/admin/import";
 import AdminTeamsList from "@/pages/admin/teams-list";
 import AdminTeamEditor from "@/pages/admin/team-editor";
+import AdminUsersList from "@/pages/admin/users-list";
 import NotFound from "@/pages/not-found";
 
 const queryClient = new QueryClient({
@@ -73,6 +74,11 @@ function Router() {
       <Route path="/dashboard/times/:id">
         <ProtectedRoute>
           <AdminTeamEditor />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/dashboard/usuarios">
+        <ProtectedRoute>
+          <AdminUsersList />
         </ProtectedRoute>
       </Route>
 
