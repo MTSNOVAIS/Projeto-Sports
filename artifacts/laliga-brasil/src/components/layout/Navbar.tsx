@@ -15,6 +15,7 @@ export function Navbar() {
   const links = [
     { href: "/", label: "Home" },
     { href: "/times", label: "Times" },
+    { href: "/busca", label: "Busca" },
     { href: "/categoria/resultados", label: "Resultados" },
   ];
 

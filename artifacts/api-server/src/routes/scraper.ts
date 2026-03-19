@@ -201,7 +201,11 @@ async function fetchRssFeed(feedUrl: string): Promise<any[]> {
       const itemContent = match[1];
 
       const titleMatch = /<title>([\s\S]*?)<\/title>/.exec(itemContent);
-      const descMatch = /<description>([\s\S]*?)<\/description>/.exec(itemContent);
+      // Handle both regular description and CDATA description
+      let descMatch = /<description><!\[CDATA\[([\s\S]*?)\]\]><\/description>/.exec(itemContent);
+      if (!descMatch) {
+        descMatch = /<description>([\s\S]*?)<\/description>/.exec(itemContent);
+      }
       const linkMatch = /<link>([\s\S]*?)<\/link>/.exec(itemContent);
       const pubDateMatch = /<pubDate>([\s\S]*?)<\/pubDate>/.exec(itemContent);
       const imageMatch = /<image.*?url>([\s\S]*?)<\/url>/.exec(itemContent);
@@ -209,16 +213,20 @@ async function fetchRssFeed(feedUrl: string): Promise<any[]> {
       if (titleMatch && linkMatch) {
         // Clean title and description - remove HTML tags and decode entities
         const cleanTitle = decodeHtmlEntities(titleMatch[1].replace(/<[^>]*>/g, "").trim());
-        const rawDesc = descMatch ? descMatch[1].replace(/<[^>]*>/g, "") : "";
-        const cleanDesc = decodeHtmlEntities(rawDesc).trim();
+        // Get full description without cutting it
+        const rawDesc = descMatch ? descMatch[1] : "";
+        const cleanDesc = stripHtmlTags(rawDesc).trim();
         
-        articles.push({
-          title: cleanTitle,
-          description: cleanDesc.substring(0, 1000), // Increased from 500 to 1000
-          link: linkMatch[1].trim(),
-          pubDate: pubDateMatch ? new Date(pubDateMatch[1]).toISOString() : new Date().toISOString(),
-          image: imageMatch ? imageMatch[1] : null,
-        });
+        // Only add if we have meaningful content
+        if (cleanTitle && cleanDesc) {
+          articles.push({
+            title: cleanTitle,
+            description: cleanDesc,  // Keep full description, truncate in the endpoint
+            link: linkMatch[1].trim(),
+            pubDate: pubDateMatch ? new Date(pubDateMatch[1]).toISOString() : new Date().toISOString(),
+            image: imageMatch ? imageMatch[1] : null,
+          });
+        }
       }
     }
 
@@ -248,9 +256,13 @@ router.post("/scraper/fetch-all", async (req, res): Promise<void> => {
           const rawArticles = await fetchRssFeed(source.rssFeed!);
           return rawArticles.slice(0, maxArticles).map((article: any) => {
             const cleanDescription = stripHtmlTags(article.description || "");
+            // Excerpt is shorter version for preview (200 chars), content is full
+            const excerpt = cleanDescription.length > 200 
+              ? cleanDescription.substring(0, 200) + "..."
+              : cleanDescription;
             return {
               title: stripHtmlTags(article.title || ""),
-              excerpt: cleanDescription.substring(0, 1000),
+              excerpt: excerpt,
               content: cleanDescription,
               coverImage: article.image || null,
               originalUrl: article.link || "",

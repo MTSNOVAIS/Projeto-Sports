@@ -35,9 +35,6 @@ export function ArticleCard({ article, featured = false }: { article: Article, f
         </div>
         
         <div className="absolute bottom-0 left-0 p-6 md:p-8 w-full">
-          <span className="inline-block px-3 py-1 mb-4 text-xs font-bold uppercase tracking-wider bg-primary text-primary-foreground rounded-full">
-            {article.category}
-          </span>
           <h2 className="text-2xl md:text-4xl font-black text-white mb-3 leading-tight group-hover:text-primary transition-colors">
             {article.title}
           </h2>
@@ -65,11 +62,6 @@ export function ArticleCard({ article, featured = false }: { article: Article, f
         ) : (
           <div className="w-full h-full bg-gradient-to-br from-secondary/50 to-muted" />
         )}
-        <div className="absolute top-3 left-3">
-          <span className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider bg-black/80 backdrop-blur text-white rounded">
-            {article.category}
-          </span>
-        </div>
       </div>
       <div className="p-5 flex flex-col flex-grow">
         <h3 className="text-xl font-bold mb-2 group-hover:text-primary transition-colors line-clamp-2 leading-tight">
