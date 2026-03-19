@@ -1,8 +1,8 @@
-# Workspace
+# La Liga Brasil
 
 ## Overview
 
-pnpm workspace monorepo using TypeScript. Each package manages its own dependencies.
+A full-stack Brazilian news site about Spanish football (La Liga). Built with React + Vite frontend, Express API backend, PostgreSQL database, and OpenAI AI integration for translating international articles.
 
 ## Stack
 
@@ -10,87 +10,87 @@ pnpm workspace monorepo using TypeScript. Each package manages its own dependenc
 - **Node.js version**: 24
 - **Package manager**: pnpm
 - **TypeScript version**: 5.9
-- **API framework**: Express 5
+- **Frontend**: React + Vite (artifacts/laliga-brasil)
+- **API framework**: Express 5 (artifacts/api-server)
 - **Database**: PostgreSQL + Drizzle ORM
 - **Validation**: Zod (`zod/v4`), `drizzle-zod`
 - **API codegen**: Orval (from OpenAPI spec)
 - **Build**: esbuild (CJS bundle)
+- **AI**: OpenAI via Replit AI Integrations (for article translation)
+- **Routing**: Wouter
+- **Styling**: Tailwind CSS with custom crimson color palette
+
+## Color Palette
+
+- Primary: #DB0037 (crimson red)
+- Dark Primary: #610018 (maroon)
+- Bright Accent: #FF0040 
+- Dark Backgrounds: #0D0D0D, #111111, #1A1A1A
+- Card Backgrounds: #161616, #1C1C1C
+
+## Features
+
+### Public Site
+- **Homepage**: Breaking news ticker, hero featured article, latest news grid, trending sidebar, team shortcuts bar
+- **Article page** (/noticias/:slug): Full article with reading time, view count, share buttons, source attribution
+- **Teams list** (/times): Grid of all 20 La Liga clubs
+- **Team page** (/times/:slug): Team profile with crest, info, recent articles
+- **Category pages** (/categoria/:category): Articles filtered by category
+- **Search** (/busca): Real-time article search
+
+### Dashboard (/dashboard)
+- **Overview**: Stats (total articles, published, drafts, scheduled, total views), recent articles table
+- **Articles** (/dashboard/artigos): Full CRUD with filters by status, category, team, source
+- **Article Editor** (/dashboard/artigos/novo|/:id/editar): Rich editor with custom datetime picker for scheduling
+- **Import** (/dashboard/importar): Import from Marca, AS, The Athletic, Sport, Mundo Deportivo with AI translation to PT-BR
+- **Teams** (/dashboard/times): Edit all 20 La Liga team profiles, logos, colors, descriptions
+
+### AI Features
+- AI-powered article translation from Spanish/English to Brazilian Portuguese
+- Cultural adaptation of football terminology
+- Attribution footer on imported articles
 
 ## Structure
 
 ```text
-artifacts-monorepo/
-├── artifacts/              # Deployable applications
-│   └── api-server/         # Express API server
-├── lib/                    # Shared libraries
-│   ├── api-spec/           # OpenAPI spec + Orval codegen config
-│   ├── api-client-react/   # Generated React Query hooks
-│   ├── api-zod/            # Generated Zod schemas from OpenAPI
-│   └── db/                 # Drizzle ORM schema + DB connection
-├── scripts/                # Utility scripts (single workspace package)
-│   └── src/                # Individual .ts scripts, run via `pnpm --filter @workspace/scripts run <script>`
-├── pnpm-workspace.yaml     # pnpm workspace (artifacts/*, lib/*, lib/integrations/*, scripts)
-├── tsconfig.base.json      # Shared TS options (composite, bundler resolution, es2022)
-├── tsconfig.json           # Root TS project references
-└── package.json            # Root package with hoisted devDeps
+artifacts/
+├── api-server/           # Express 5 API server
+│   └── src/routes/       # articles.ts, teams.ts, categories.ts, stats.ts, scraper.ts
+└── laliga-brasil/        # React + Vite frontend
+    └── src/
+        ├── pages/        # home, article, team, teams-list, category, search, admin/*
+        ├── components/   # ArticleCard, Navbar, Footer, CustomDateTimePicker
+        └── hooks/        # use-articles, use-teams, use-system
+lib/
+├── db/src/schema/        # teams.ts, articles.ts
+├── api-spec/             # openapi.yaml (source of truth)
+├── api-client-react/     # Generated React Query hooks
+└── api-zod/              # Generated Zod schemas
 ```
 
-## TypeScript & Composite Projects
+## API Endpoints
 
-Every package extends `tsconfig.base.json` which sets `composite: true`. The root `tsconfig.json` lists all packages as project references. This means:
+- `GET /api/articles` - Public articles (paginated, filtered)
+- `GET /api/articles/:slug` - Single article (increments view count)
+- `GET /api/teams` - All 20 La Liga teams
+- `GET /api/teams/:slug` - Team with recent articles
+- `GET /api/categories` - Categories with article counts
+- `GET /api/stats` - Site statistics
+- `GET/POST /api/admin/articles` - Admin article management
+- `PUT/DELETE /api/admin/articles/:id` - Update/delete article
+- `POST /api/admin/articles/:id/publish` - Publish immediately
+- `POST /api/admin/articles/:id/schedule` - Schedule with custom datetime
+- `GET/POST /api/admin/teams` - Admin team management
+- `PUT /api/admin/teams/:id` - Update team
+- `GET /api/scraper/sources` - List news sources
+- `POST /api/scraper/fetch` - Fetch and AI-translate articles from source
+- `POST /api/scraper/translate` - Translate individual article
 
-- **Always typecheck from the root** — run `pnpm run typecheck` (which runs `tsc --build --emitDeclarationOnly`). This builds the full dependency graph so that cross-package imports resolve correctly. Running `tsc` inside a single package will fail if its dependencies haven't been built yet.
-- **`emitDeclarationOnly`** — we only emit `.d.ts` files during typecheck; actual JS bundling is handled by esbuild/tsx/vite...etc, not `tsc`.
-- **Project references** — when package A depends on package B, A's `tsconfig.json` must list B in its `references` array. `tsc --build` uses this to determine build order and skip up-to-date packages.
+## Database Tables
 
-## Root Scripts
+- `teams` - 20 La Liga clubs (name, slug, city, stadium, colors, logo, description)
+- `articles` - News articles (title, slug, content, status, featured, breaking_news, category, team_id, source attribution, scheduled publishing)
 
-- `pnpm run build` — runs `typecheck` first, then recursively runs `build` in all packages that define it
-- `pnpm run typecheck` — runs `tsc --build --emitDeclarationOnly` using project references
+## All Times in Brasília Timezone (BRT/UTC-3)
 
-## Packages
-
-### `artifacts/api-server` (`@workspace/api-server`)
-
-Express 5 API server. Routes live in `src/routes/` and use `@workspace/api-zod` for request and response validation and `@workspace/db` for persistence.
-
-- Entry: `src/index.ts` — reads `PORT`, starts Express
-- App setup: `src/app.ts` — mounts CORS, JSON/urlencoded parsing, routes at `/api`
-- Routes: `src/routes/index.ts` mounts sub-routers; `src/routes/health.ts` exposes `GET /health` (full path: `/api/health`)
-- Depends on: `@workspace/db`, `@workspace/api-zod`
-- `pnpm --filter @workspace/api-server run dev` — run the dev server
-- `pnpm --filter @workspace/api-server run build` — production esbuild bundle (`dist/index.cjs`)
-- Build bundles an allowlist of deps (express, cors, pg, drizzle-orm, zod, etc.) and externalizes the rest
-
-### `lib/db` (`@workspace/db`)
-
-Database layer using Drizzle ORM with PostgreSQL. Exports a Drizzle client instance and schema models.
-
-- `src/index.ts` — creates a `Pool` + Drizzle instance, exports schema
-- `src/schema/index.ts` — barrel re-export of all models
-- `src/schema/<modelname>.ts` — table definitions with `drizzle-zod` insert schemas (no models definitions exist right now)
-- `drizzle.config.ts` — Drizzle Kit config (requires `DATABASE_URL`, automatically provided by Replit)
-- Exports: `.` (pool, db, schema), `./schema` (schema only)
-
-Production migrations are handled by Replit when publishing. In development, we just use `pnpm --filter @workspace/db run push`, and we fallback to `pnpm --filter @workspace/db run push-force`.
-
-### `lib/api-spec` (`@workspace/api-spec`)
-
-Owns the OpenAPI 3.1 spec (`openapi.yaml`) and the Orval config (`orval.config.ts`). Running codegen produces output into two sibling packages:
-
-1. `lib/api-client-react/src/generated/` — React Query hooks + fetch client
-2. `lib/api-zod/src/generated/` — Zod schemas
-
-Run codegen: `pnpm --filter @workspace/api-spec run codegen`
-
-### `lib/api-zod` (`@workspace/api-zod`)
-
-Generated Zod schemas from the OpenAPI spec (e.g. `HealthCheckResponse`). Used by `api-server` for response validation.
-
-### `lib/api-client-react` (`@workspace/api-client-react`)
-
-Generated React Query hooks and fetch client from the OpenAPI spec (e.g. `useHealthCheck`, `healthCheck`).
-
-### `scripts` (`@workspace/scripts`)
-
-Utility scripts package. Each script is a `.ts` file in `src/` with a corresponding npm script in `package.json`. Run scripts via `pnpm --filter @workspace/scripts run <script>`. Scripts can import any workspace package (e.g., `@workspace/db`) by adding it as a dependency in `scripts/package.json`.
+Articles are stored with UTC timestamps and displayed in Brasília time.

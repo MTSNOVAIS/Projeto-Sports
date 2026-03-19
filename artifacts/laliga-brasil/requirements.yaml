@@ -1,0 +1,20 @@
+packages:
+  "framer-motion": "Smooth page transitions and component animations"
+  "date-fns": "Date formatting and manipulation for custom date picker"
+  "react-markdown": "Rendering rich text content for articles"
+  "remark-gfm": "Markdown formatting support"
+  "clsx": "Utility for constructing className strings"
+  "tailwind-merge": "Utility for merging tailwind classes safely"
+
+images:
+  - path: "artifacts/laliga-brasil/public/images/logo.png"
+    description: "Modern, aggressive sports journalism logo for 'La Liga Brasil', crimson red typography on transparent background"
+    aspect_ratio: "16:9"
+  - path: "artifacts/laliga-brasil/public/images/hero-bg.png"
+    description: "Dark, moody stadium lights background with subtle crimson red volumetric fog, out of focus, cinematic"
+    aspect_ratio: "16:9"
+
+notes:
+  - UI strictly adheres to dark mode with deep crimson accents.
+  - All date pickers are custom implementations avoiding native HTML5 date/time inputs.
+  - Using generated React Query hooks from @workspace/api-client-react.

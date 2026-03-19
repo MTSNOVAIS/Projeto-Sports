@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "La Liga Brasil"
+version = "1.0.0"
+id = "artifacts/laliga-brasil"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 22210
+
+[services.development]
+run = "pnpm --filter @workspace/laliga-brasil run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/laliga-brasil", "run", "build" ]
+publicDir = "artifacts/laliga-brasil/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "22210"
+BASE_PATH = "/"

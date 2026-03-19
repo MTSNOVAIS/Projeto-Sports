@@ -1,0 +1,133 @@
+import React from "react";
+import { useRoute } from "wouter";
+import { useGetArticle } from "@/hooks/use-articles";
+import { Navbar } from "@/components/layout/Navbar";
+import { Footer } from "@/components/layout/Footer";
+import { Link } from "wouter";
+import { Calendar, User, Eye, Share2, Twitter, Facebook, Link as LinkIcon, Shield } from "lucide-react";
+import { format, parseISO } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+
+export default function ArticleView() {
+  const [, params] = useRoute("/noticias/:slug");
+  const { data: article, isLoading, error } = useGetArticle(params?.slug || "", { query: { enabled: !!params?.slug } });
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <Navbar />
+        <div className="flex-grow flex items-center justify-center">
+          <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
+
+  if (error || !article) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <Navbar />
+        <div className="flex-grow flex items-center justify-center flex-col gap-4 text-center">
+          <h1 className="text-4xl font-display font-black text-white">Artigo não encontrado</h1>
+          <p className="text-muted-foreground">A matéria que você está procurando não existe ou foi removida.</p>
+          <Link href="/" className="px-6 py-3 bg-primary text-white rounded-lg font-bold mt-4 hover:bg-accent transition-colors">Voltar para Home</Link>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
+
+  const dateStr = article.publishedAt ? format(parseISO(article.publishedAt), "dd 'de' MMMM 'de' yyyy 'às' HH:mm", { locale: ptBR }) : "";
+
+  return (
+    <div className="min-h-screen flex flex-col">
+      <Navbar />
+      
+      <main className="flex-grow">
+        {/* Article Header */}
+        <header className="pt-12 pb-8 border-b border-border bg-card/30">
+          <div className="container mx-auto px-4 max-w-4xl">
+            <div className="flex items-center gap-3 mb-6">
+              <Link href={`/categoria/${article.category.toLowerCase()}`} className="px-3 py-1 bg-primary text-white text-xs font-bold uppercase tracking-wider rounded">
+                {article.category}
+              </Link>
+              {article.teamName && (
+                <Link href={`/times/${article.teamSlug}`} className="px-3 py-1 bg-secondary text-white text-xs font-bold uppercase tracking-wider rounded flex items-center gap-1 border border-primary/20 hover:bg-secondary/80">
+                  <Shield className="w-3 h-3" /> {article.teamName}
+                </Link>
+              )}
+            </div>
+            
+            <h1 className="text-4xl md:text-5xl lg:text-6xl font-black font-display text-white leading-[1.1] mb-6">
+              {article.title}
+            </h1>
+            
+            <p className="text-xl text-gray-400 font-medium leading-relaxed mb-8 border-l-4 border-primary pl-4">
+              {article.excerpt}
+            </p>
+            
+            <div className="flex flex-wrap items-center justify-between gap-4 text-sm text-muted-foreground font-medium py-4 border-t border-border">
+              <div className="flex items-center gap-6">
+                <span className="flex items-center gap-2 text-white">
+                  <User className="w-4 h-4 text-primary" /> {article.authorName}
+                </span>
+                {dateStr && (
+                  <span className="flex items-center gap-2">
+                    <Calendar className="w-4 h-4" /> {dateStr}
+                  </span>
+                )}
+                <span className="flex items-center gap-2">
+                  <Eye className="w-4 h-4" /> {article.viewCount} leituras
+                </span>
+              </div>
+              
+              <div className="flex items-center gap-3">
+                <span className="mr-2">Compartilhar:</span>
+                <button className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center hover:bg-primary hover:text-white transition-colors"><Twitter className="w-4 h-4" /></button>
+                <button className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center hover:bg-primary hover:text-white transition-colors"><Facebook className="w-4 h-4" /></button>
+                <button className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center hover:bg-primary hover:text-white transition-colors"><LinkIcon className="w-4 h-4" /></button>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        {/* Hero Image */}
+        {article.coverImage && (
+          <div className="w-full max-w-5xl mx-auto mt-8 px-4">
+            <div className="aspect-video w-full rounded-2xl overflow-hidden bg-muted border border-border shadow-2xl">
+              <img src={article.coverImage} alt={article.title} className="w-full h-full object-cover" />
+            </div>
+          </div>
+        )}
+
+        {/* Article Content */}
+        <div className="container mx-auto px-4 max-w-3xl py-12">
+          <article className="prose prose-invert prose-lg prose-p:text-gray-300 prose-headings:text-white prose-a:text-primary hover:prose-a:text-accent max-w-none">
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+              {article.content}
+            </ReactMarkdown>
+          </article>
+          
+          {/* Attribution block for imported articles */}
+          {article.sourceName && (
+            <div className="mt-12 p-6 bg-card border border-border rounded-xl">
+              <p className="text-sm text-muted-foreground">
+                <strong className="text-white">Nota Editorial:</strong> Este artigo foi publicado originalmente em <span className="text-primary font-bold">{article.sourceName}</span>{article.sourceUrl ? ` e pode ser acessado em sua versão original clicando aqui.` : '.'} Traduzido e adaptado pela La Liga Brasil via inteligência artificial.
+              </p>
+              {article.sourceUrl && (
+                <a href={article.sourceUrl} target="_blank" rel="noopener noreferrer" className="inline-flex mt-3 text-sm font-bold text-primary hover:text-accent items-center gap-1">
+                  Ler original em {article.sourceName} <Share2 className="w-3 h-3" />
+                </a>
+              )}
+            </div>
+          )}
+        </div>
+      </main>
+      
+      <Footer />
+    </div>
+  );
+}
