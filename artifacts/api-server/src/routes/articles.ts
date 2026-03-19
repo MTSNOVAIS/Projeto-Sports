@@ -43,7 +43,7 @@ router.get("/articles", async (req, res): Promise<void> => {
   const featured = req.query.featured !== undefined ? req.query.featured === "true" : undefined;
   const search = req.query.search as string | undefined;
 
-  const conditions = [eq(articlesTable.status, "published")];
+  const conditions: any[] = [];
 
   if (category) conditions.push(eq(articlesTable.category, category));
   if (teamId) conditions.push(eq(articlesTable.teamId, teamId));

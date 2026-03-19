@@ -52,70 +52,44 @@ const translationDict: Record<string, string> = {
   "árbitro": "árbitro"
 };
 
-// Translate article to Brazilian Portuguese and generate AI-style summary
+// Translate article to Brazilian Portuguese using free API
 async function translateArticle(title: string, content: string, sourceName: string, sourceLanguage: string = "es"): Promise<{ title: string; content: string; excerpt: string }> {
   if (!title || !content) return { title, content, excerpt: "" };
   
   try {
-    // For English articles, just use them as-is (some are already in English or mixed)
-    // For Spanish articles, try to translate using OpenAI
+    // For English articles, just generate excerpt
     if (sourceLanguage === "en") {
-      // English - just generate excerpt
       const excerpt = generateExcerpt(content);
       return { title, content, excerpt };
     }
 
-    // Try OpenAI translation for Spanish
-    const prompt = `Translate this football article from Spanish to Brazilian Portuguese. Keep all names and keep full content complete:
-
-Title: ${title}
-Content: ${content}
-
-Return ONLY this format:
-TITLE: [translated title]
-CONTENT: [full translated content, complete and uncut]`;
-
-    try {
-      const completion = await openai.chat.completions.create({
-        model: "gpt-3.5-turbo",
-        messages: [
-          { role: "user", content: prompt }
-        ],
-        max_tokens: 3000,
-        temperature: 0.3
-      } as any);
-
-      const responseText = completion.choices[0]?.message?.content || "";
-      
-      const titleMatch = responseText.match(/TITLE:\s*(.+?)(?:\nCONTENT:|$)/);
-      const contentMatch = responseText.match(/CONTENT:\s*([\s\S]*?)$/);
-      
-      if (titleMatch && contentMatch) {
-        const translatedTitle = titleMatch[1].trim();
-        const translatedContent = contentMatch[1].trim();
-        const excerpt = generateExcerpt(translatedContent);
-        
-        return {
-          title: translatedTitle || title,
-          content: translatedContent || content,
-          excerpt
-        };
+    // Translate using MyMemory API (free, no auth needed)
+    const translateText = async (text: string): Promise<string> => {
+      try {
+        // Encode text for URL
+        const encoded = encodeURIComponent(text.substring(0, 4500)); // API has limits
+        const response = await fetch(
+          `https://api.mymemory.translated.net/get?q=${encoded}&langpair=es|pt-BR`,
+          { timeout: 5000 }
+        );
+        const data = await response.json();
+        return data?.responseData?.translatedText || text;
+      } catch {
+        return text; // Return original if translation fails
       }
-    } catch (apiErr) {
-      console.log("OpenAI translation failed, using fallback");
-    }
+    };
 
-    // Fallback: use dictionary translation
-    let translatedContent = content;
-    for (const [es, pt] of Object.entries(translationDict)) {
-      const regex = new RegExp(`\\b${es}\\b`, 'gi');
-      translatedContent = translatedContent.replace(regex, pt);
-    }
+    // Translate title and content in parallel
+    const [translatedTitle, translatedContent] = await Promise.all([
+      translateText(title),
+      translateText(content)
+    ]);
 
+    // Generate excerpt from translated content
     const excerpt = generateExcerpt(translatedContent);
     
     return {
-      title,
+      title: translatedTitle,
       content: translatedContent,
       excerpt
     };
