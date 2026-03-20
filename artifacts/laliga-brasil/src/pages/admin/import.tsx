@@ -46,38 +46,13 @@ export default function AdminImport() {
           .slice(0, 100) + "-" + Date.now().toString(36);
       };
 
-      toast({ title: "Traduzindo...", description: `Adaptando matéria de ${article.sourceName} para o português...` });
-
-      // Translate article to Brazilian Portuguese before importing
-      let title = article.title;
-      let excerpt = article.excerpt;
-      let content = article.content;
-      let subtitle = article.subtitle || "";
-
-      try {
-        const translateResponse = await fetch(`${import.meta.env.BASE_URL}api/scraper/translate`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            title: article.title,
-            excerpt: article.excerpt,
-            content: article.content,
-            sourceName: article.sourceName,
-            sourceLanguage: article.sourceLanguage || "es",
-          }),
-        });
-        if (translateResponse.ok) {
-          const translated = await translateResponse.json();
-          title = translated.title || title;
-          excerpt = translated.excerpt || excerpt;
-          content = translated.content || content;
-          subtitle = translated.subtitle || subtitle;
-        }
-      } catch (err) {
-        console.error("Translation failed, importing in original language:", err);
-      }
-
       toast({ title: "Importando...", description: `Salvando matéria de ${article.sourceName}...` });
+
+      // Articles arrive pre-translated from the server
+      const title = article.title;
+      const excerpt = article.excerpt;
+      const content = article.content;
+      const subtitle = article.subtitle || "";
 
       await createMutation.mutateAsync({
         data: {

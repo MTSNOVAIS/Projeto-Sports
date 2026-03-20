@@ -568,9 +568,10 @@ router.get("/scraper/sources", async (_req, res): Promise<void> => {
   res.json(NEWS_SOURCES);
 });
 
-// Fetch articles from all sources and return as a unified timeline
+// Fetch articles from all sources, translate to PT-BR, and return as a unified timeline
 router.post("/scraper/fetch-all", async (req, res): Promise<void> => {
-  const { maxArticles = 5 } = req.body;
+  // Cap at 3 per source to keep parallel translation fast
+  const maxPerSource = 3;
 
   try {
     const allArticles: any[] = [];
@@ -581,21 +582,25 @@ router.post("/scraper/fetch-all", async (req, res): Promise<void> => {
       .map(async (source) => {
         try {
           const rawArticles = await fetchRssFeed(source.rssFeed!);
-          
-          // Process each article with full content fetching
+
+          // Process + translate each article fully in parallel
           return Promise.all(
-            rawArticles.slice(0, maxArticles).map(async (article: any) => {
+            rawArticles.slice(0, maxPerSource).map(async (article: any) => {
               const cleanTitle = stripHtmlTags(article.title || "");
               const cleanDescription = stripHtmlTags(article.description || "");
-              
+
               // Fetch full content from the article URL
               const fullContent = await fetchFullArticleContent(article.link || "");
-              
+              const rawContent = fullContent || cleanDescription;
+
+              // Translate to Brazilian Portuguese
+              const translated = await translateArticle(cleanTitle, rawContent, source.name, source.language);
+
               return {
-                title: cleanTitle,
-                subtitle: "",  // Will be generated on import
-                excerpt: cleanDescription,
-                content: fullContent || cleanDescription,  // Use full content if available
+                title: translated.title,
+                subtitle: translated.subtitle,
+                excerpt: translated.excerpt,
+                content: translated.content,
                 coverImage: article.image || null,
                 originalUrl: article.link || "",
                 sourceName: source.name,
@@ -614,7 +619,7 @@ router.post("/scraper/fetch-all", async (req, res): Promise<void> => {
     results.forEach(articles => allArticles.push(...articles));
 
     // Sort by date descending
-    allArticles.sort((a, b) => 
+    allArticles.sort((a, b) =>
       new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()
     );
 
