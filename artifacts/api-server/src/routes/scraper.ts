@@ -185,24 +185,58 @@ function translateText(text: string): string {
   return translated;
 }
 
+// Generate AI subtitle for article
+async function generateSubtitle(title: string, content: string): Promise<string> {
+  if (!title || !content) return "";
+  
+  try {
+    const prompt = `Given the following article title and content, generate a concise subtitle (10-15 words) that complements the title and captures the key aspect of the story. The subtitle should be engaging and informative without repeating the title.
+
+Title: ${title}
+Content: ${content.substring(0, 500)}
+
+Respond with ONLY the subtitle text, no quotes or additional formatting.`;
+
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "system",
+          content: "You are a professional sports journalist. Generate concise, engaging subtitles that complement article titles. Respond with only the subtitle text.",
+        },
+        { role: "user", content: prompt },
+      ],
+      max_completion_tokens: 50,
+    });
+
+    const subtitle = completion.choices[0]?.message?.content || "";
+    return subtitle.trim().replace(/^["']|["']$/g, "");
+  } catch (err) {
+    console.error("Subtitle generation error:", err);
+    return "";
+  }
+}
+
 // Translate article to Brazilian Portuguese (currently keeping in Spanish, awaiting translation API)
-async function translateArticle(title: string, content: string, sourceName: string, sourceLanguage: string = "es"): Promise<{ title: string; content: string; excerpt: string }> {
-  if (!title || !content) return { title, content, excerpt: "" };
+async function translateArticle(title: string, content: string, sourceName: string, sourceLanguage: string = "es"): Promise<{ title: string; content: string; excerpt: string; subtitle: string }> {
+  if (!title || !content) return { title, content, excerpt: "", subtitle: "" };
   
   try {
     // For now, keep in original language but ensure excerpt is generated
     // TODO: Implement translation once MyMemory API is available again
     const excerpt = generateExcerpt(content);
+    const subtitle = await generateSubtitle(title, content);
     
     return {
       title,
       content,
-      excerpt
+      excerpt,
+      subtitle
     };
   } catch (err) {
     console.error("Translation error:", err);
     const excerpt = generateExcerpt(content);
-    return { title, content, excerpt };
+    return { title, content, excerpt, subtitle: "" };
   }
 }
 
@@ -488,8 +522,8 @@ router.post("/scraper/fetch-all", async (req, res): Promise<void> => {
               const cleanTitle = stripHtmlTags(article.title || "");
               const cleanDescription = stripHtmlTags(article.description || "");
               
-              // Translate and generate AI summary
-              const { title, content, excerpt } = await translateArticle(
+              // Translate and generate AI summary and subtitle
+              const { title, content, excerpt, subtitle } = await translateArticle(
                 cleanTitle,
                 cleanDescription,
                 source.name,
@@ -498,6 +532,7 @@ router.post("/scraper/fetch-all", async (req, res): Promise<void> => {
               
               return {
                 title,
+                subtitle,  // AI-generated subtitle
                 excerpt,  // AI-generated summary (not a copy)
                 content,  // Complete translated content
                 coverImage: article.image || null,
@@ -564,14 +599,21 @@ router.post("/scraper/fetch", async (req, res): Promise<void> => {
     return;
   }
 
-  const articles = rawArticles.slice(0, maxArticles).map((article: any) => ({
-    title: article.title || "",
-    excerpt: article.description || "",
-    content: article.description || "",
-    originalUrl: article.link || "",
-    sourceName: source.name,
-    coverImage: article.image || null,
-    publishedAt: article.pubDate || new Date().toISOString(),
+  const articles = await Promise.all(rawArticles.slice(0, maxArticles).map(async (article: any) => {
+    const title = article.title || "";
+    const content = article.description || "";
+    const subtitle = await generateSubtitle(title, content);
+    
+    return {
+      title,
+      subtitle,
+      excerpt: article.description || "",
+      content,
+      originalUrl: article.link || "",
+      sourceName: source.name,
+      coverImage: article.image || null,
+      publishedAt: article.pubDate || new Date().toISOString(),
+    };
   }));
 
   res.json({
@@ -605,7 +647,7 @@ Excerpt: ${excerpt}
 Content: ${content}`;
 
     const completion = await openai.chat.completions.create({
-      model: "gpt-5-mini",
+      model: "gpt-4o-mini",
       messages: [
         {
           role: "system",
@@ -624,14 +666,39 @@ Content: ${content}`;
       parsed = { title, excerpt, content };
     }
 
+    // Generate subtitle for translated article
+    const subtitle = await generateSubtitle(
+      parsed.title || title,
+      parsed.content || content
+    );
+
     res.json({
       title: parsed.title || title,
       excerpt: parsed.excerpt || excerpt,
       content: parsed.content || content,
+      subtitle,
     });
   } catch (err) {
     console.error("Translation error:", err);
     res.status(500).json({ error: "Failed to translate article" });
+  }
+});
+
+// Generate subtitle for an article
+router.post("/scraper/generate-subtitle", async (req, res): Promise<void> => {
+  const { title, content } = req.body;
+
+  if (!title || !content) {
+    res.status(400).json({ error: "title and content are required" });
+    return;
+  }
+
+  try {
+    const subtitle = await generateSubtitle(title, content);
+    res.json({ subtitle });
+  } catch (err) {
+    console.error("Subtitle generation error:", err);
+    res.status(500).json({ error: "Failed to generate subtitle" });
   }
 });
 

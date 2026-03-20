@@ -54,6 +54,12 @@ A full-stack Brazilian news site about Spanish football (La Liga). Built with Re
 - **Roles** (/dashboard/cargos): Manage user roles with 17 granular permissions
 
 ### AI Features
+- **AI-generated subtitles** for all articles (manual or imported)
+  - Concise, complementary subtitles (10-15 words) that enhance titles
+  - Generated using GPT-4o-mini for fast, accurate results
+  - Available in article editor with manual "Generate with AI" button
+  - Automatic generation during RSS feed imports
+  - Optional field - can be manually edited or left empty
 - AI-powered article translation from Spanish/English to Brazilian Portuguese
 - Cultural adaptation of football terminology
 - Server-side translation optimization (no double-translation)
@@ -96,13 +102,15 @@ lib/
 - `GET /api/admin/roles` - List available roles
 - `POST/PUT/DELETE /api/admin/roles/:id` - Role management
 - `GET /api/scraper/sources` - List news sources (RSS feed-based)
-- `POST /api/scraper/fetch` - Fetch articles from RSS feeds with AI translation
-- `POST /api/scraper/translate` - Translate individual article
+- `POST /api/scraper/fetch` - Fetch articles from RSS feeds with AI translation and subtitle generation
+- `POST /api/scraper/fetch-all` - Fetch from all RSS sources with AI translation and subtitle generation
+- `POST /api/scraper/translate` - Translate individual article with subtitle generation
+- `POST /api/scraper/generate-subtitle` - Generate subtitle for title and content
 
 ## Database Tables
 
 - `teams` - 20 La Liga clubs (name, slug, city, stadium, colors, logo, description)
-- `articles` - News articles (title, slug, content, status, featured, breaking_news, category, team_id, source attribution, scheduled publishing)
+- `articles` - News articles (title, subtitle, slug, content, status, featured, breaking_news, category, team_id, source attribution, scheduled publishing)
 - `users` - Admin users (email, password, name, role, active status)
 - `roles` - User roles with granular permissions (17 permission types)
 

@@ -30,8 +30,9 @@ export default function AdminArticleEditor() {
   const { toast } = useToast();
 
   // Estado do formulário com suporte a co-autores
-  const [formData, setFormData] = useState<CreateArticleRequest & { coAuthors?: string }>({
+  const [formData, setFormData] = useState<CreateArticleRequest & { coAuthors?: string; subtitle?: string }>({
     title: "",
+    subtitle: "",
     excerpt: "",
     content: "",
     coverImage: "",
@@ -47,10 +48,13 @@ export default function AdminArticleEditor() {
     coAuthors: ""
   });
 
+  const [generatingSubtitle, setGeneratingSubtitle] = useState(false);
+
   useEffect(() => {
     if (existingArticle) {
       setFormData({
         title: existingArticle.title,
+        subtitle: existingArticle.subtitle || "",
         excerpt: existingArticle.excerpt,
         content: existingArticle.content,
         coverImage: existingArticle.coverImage || "",
@@ -86,6 +90,35 @@ export default function AdminArticleEditor() {
 
   const handleContentChange = (newContent: string) => {
     setFormData(prev => ({ ...prev, content: newContent }));
+  };
+
+  const handleGenerateSubtitle = async () => {
+    if (!formData.title || !formData.content) {
+      toast({ title: "Erro", description: "Título e conteúdo são necessários.", variant: "destructive" });
+      return;
+    }
+
+    setGeneratingSubtitle(true);
+    try {
+      const response = await fetch(`${import.meta.env.BASE_URL}api/scraper/generate-subtitle`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: formData.title,
+          content: formData.content,
+        }),
+      });
+
+      if (!response.ok) throw new Error("Failed to generate subtitle");
+      const data = await response.json();
+      
+      setFormData(prev => ({ ...prev, subtitle: data.subtitle }));
+      toast({ title: "Sucesso", description: "Subtítulo gerado com IA!" });
+    } catch (e: any) {
+      toast({ title: "Erro", description: "Falha ao gerar subtítulo.", variant: "destructive" });
+    } finally {
+      setGeneratingSubtitle(false);
+    }
   };
 
   const handleSave = async (forceStatus?: CreateArticleRequestStatus) => {
@@ -184,6 +217,28 @@ export default function AdminArticleEditor() {
                   onChange={handleChange}
                   placeholder="Insira um título impactante e descritivo..."
                   className="w-full bg-background border border-border rounded-lg px-4 py-4 text-white font-display text-2xl font-bold focus:border-primary focus:ring-2 focus:ring-primary/50 focus:outline-none transition-all placeholder-muted-foreground/50"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-2 justify-between">
+                  <span>Subtítulo (IA)</span>
+                  <button
+                    type="button"
+                    onClick={handleGenerateSubtitle}
+                    disabled={generatingSubtitle || !formData.title || !formData.content}
+                    className="px-3 py-1 bg-accent/20 hover:bg-accent/40 text-accent rounded text-xs font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {generatingSubtitle ? "Gerando..." : "Gerar com IA"}
+                  </button>
+                </label>
+                <input 
+                  type="text" 
+                  name="subtitle" 
+                  value={formData.subtitle || ""} 
+                  onChange={handleChange}
+                  placeholder="Subtítulo complementar (gerado automaticamente ou manual)..."
+                  className="w-full bg-background border border-border rounded-lg px-4 py-3 text-gray-300 focus:border-primary focus:ring-2 focus:ring-primary/50 focus:outline-none transition-all placeholder-muted-foreground/50"
                 />
               </div>
               

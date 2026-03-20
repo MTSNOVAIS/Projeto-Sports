@@ -7,6 +7,7 @@ export const articlesTable = pgTable("articles", {
   id: serial("id").primaryKey(),
   title: text("title").notNull(),
   slug: text("slug").notNull().unique(),
+  subtitle: text("subtitle"),
   excerpt: text("excerpt").notNull(),
   content: text("content").notNull(),
   coverImage: text("cover_image"),

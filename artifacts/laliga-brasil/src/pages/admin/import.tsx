@@ -52,6 +52,7 @@ export default function AdminImport() {
         data: {
           title: article.title,
           slug: generateSlug(article.title),
+          subtitle: article.subtitle || "",
           excerpt: article.excerpt,
           content: article.content,
           coverImage: article.coverImage,
@@ -207,9 +208,16 @@ export default function AdminImport() {
                         </div>
 
                         {/* Title */}
-                        <h3 className="font-bold text-white leading-snug mb-2">
+                        <h3 className="font-bold text-white leading-snug mb-1">
                           {article.title}
                         </h3>
+
+                        {/* Subtitle */}
+                        {article.subtitle && (
+                          <p className="text-xs text-primary/80 italic mb-2">
+                            {article.subtitle}
+                          </p>
+                        )}
 
                         {/* Excerpt */}
                         <p className="text-xs text-muted-foreground line-clamp-2 mb-3">
