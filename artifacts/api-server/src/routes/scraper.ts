@@ -421,7 +421,17 @@ function decodeHtmlEntities(text: string): string {
 // Helper function to strip HTML tags from text
 function stripHtmlTags(text: string): string {
   return text
-    .replace(/<[^>]*>/g, "")  // Remove all HTML tags
+    // Remove script tags and content
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
+    // Remove style tags and content
+    .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, "")
+    // Remove noscript tags and content
+    .replace(/<noscript\b[^<]*(?:(?!<\/noscript>)<[^<]*)*<\/noscript>/gi, "")
+    // Remove iframe tags
+    .replace(/<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi, "")
+    // Remove all other HTML tags
+    .replace(/<[^>]*>/g, "")
+    // Decode HTML entities
     .replace(/&nbsp;/g, " ")
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
@@ -433,6 +443,8 @@ function stripHtmlTags(text: string): string {
     .replace(/&#8211;/g, "–")
     .replace(/&apos;/g, "'")
     .replace(/&amp;/g, "&")  // Must be last to avoid double-decoding
+    // Clean up multiple spaces and newlines
+    .replace(/\s+/g, " ")
     .trim();
 }
 
@@ -476,16 +488,27 @@ async function fetchFullArticleContent(url: string): Promise<string> {
     // If no container found, try to extract paragraphs
     if (!content) {
       const paragraphs = html.match(/<p[^>]*>([\s\S]*?)<\/p>/gi) || [];
-      content = paragraphs.join("\n");
+      content = paragraphs.join("\n\n");
     }
     
-    // Clean up the content
-    const cleaned = stripHtmlTags(content)
-      .replace(/\n\s*\n/g, "\n\n")  // Normalize paragraph spacing
-      .trim();
+    // Clean up the content - preserve paragraph structure
+    let cleaned = stripHtmlTags(content);
+    
+    // Restore paragraph breaks (split by newline patterns if present)
+    if (cleaned.includes("\n")) {
+      cleaned = cleaned
+        .split(/\n+/)
+        .filter(line => line.trim().length > 0)
+        .join("\n\n");
+    } else {
+      // If no newlines, try to split by common sentence endings
+      cleaned = cleaned
+        .replace(/([.!?])\s+([A-Z])/g, "$1\n$2")  // New paragraph on new sentence
+        .replace(/\n+/g, "\n\n");  // Normalize spacing
+    }
     
     // Return content only if it's substantial (more than 200 chars)
-    return cleaned.length > 200 ? cleaned : "";
+    return cleaned.trim().length > 200 ? cleaned.trim() : "";
   } catch (err) {
     console.error(`Error fetching full article from ${url}:`, err);
     return "";
