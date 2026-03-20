@@ -420,18 +420,28 @@ function decodeHtmlEntities(text: string): string {
 
 // Helper function to strip HTML tags from text
 function stripHtmlTags(text: string): string {
-  return text
-    // Remove script tags and content
-    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
-    // Remove style tags and content
-    .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, "")
-    // Remove noscript tags and content
-    .replace(/<noscript\b[^<]*(?:(?!<\/noscript>)<[^<]*)*<\/noscript>/gi, "")
-    // Remove iframe tags
-    .replace(/<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi, "")
-    // Remove all other HTML tags
-    .replace(/<[^>]*>/g, "")
-    // Decode HTML entities
+  let result = text;
+  
+  // Remove script tags and all their content (case-insensitive, handles multiline)
+  result = result.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, " ");
+  
+  // Remove style tags and all their content
+  result = result.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, " ");
+  
+  // Remove noscript tags and content
+  result = result.replace(/<noscript[^>]*>[\s\S]*?<\/noscript>/gi, " ");
+  
+  // Remove iframe tags and content
+  result = result.replace(/<iframe[^>]*>[\s\S]*?<\/iframe>/gi, " ");
+  
+  // Remove comment tags
+  result = result.replace(/<!--[\s\S]*?-->/g, " ");
+  
+  // Remove all HTML tags
+  result = result.replace(/<[^>]*>/g, " ");
+  
+  // Decode HTML entities
+  result = result
     .replace(/&nbsp;/g, " ")
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
@@ -442,10 +452,19 @@ function stripHtmlTags(text: string): string {
     .replace(/&#8212;/g, "—")
     .replace(/&#8211;/g, "–")
     .replace(/&apos;/g, "'")
-    .replace(/&amp;/g, "&")  // Must be last to avoid double-decoding
-    // Clean up multiple spaces and newlines
-    .replace(/\s+/g, " ")
-    .trim();
+    .replace(/&amp;/g, "&");  // Must be last to avoid double-decoding
+  
+  // Remove any remaining code patterns
+  result = result
+    .replace(/\bvar\s+\w+\s*=\s*[^;]*;/g, "")  // var declarations
+    .replace(/\blet\s+\w+\s*=\s*[^;]*;/g, "")  // let declarations  
+    .replace(/\bconst\s+\w+\s*=\s*[^;]*;/g, "")  // const declarations
+    .replace(/\bfunction\s+\w+\s*\([^)]*\)\s*\{[^}]*\}/g, "");  // function declarations
+  
+  // Clean up multiple spaces and newlines
+  result = result.replace(/\s+/g, " ").trim();
+  
+  return result;
 }
 
 // Helper function to fetch full article content from URL

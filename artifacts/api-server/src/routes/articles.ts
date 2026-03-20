@@ -6,8 +6,28 @@ const router: IRouter = Router();
 
 // Helper function to strip HTML tags from text
 function stripHtmlTags(text: string): string {
-  return text
-    .replace(/<[^>]*>/g, "")  // Remove all HTML tags
+  let result = text;
+  
+  // Remove script tags and all their content (case-insensitive, handles multiline)
+  result = result.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, " ");
+  
+  // Remove style tags and all their content
+  result = result.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, " ");
+  
+  // Remove noscript tags and content
+  result = result.replace(/<noscript[^>]*>[\s\S]*?<\/noscript>/gi, " ");
+  
+  // Remove iframe tags and content
+  result = result.replace(/<iframe[^>]*>[\s\S]*?<\/iframe>/gi, " ");
+  
+  // Remove comment tags
+  result = result.replace(/<!--[\s\S]*?-->/g, " ");
+  
+  // Remove all HTML tags
+  result = result.replace(/<[^>]*>/g, " ");
+  
+  // Decode HTML entities
+  result = result
     .replace(/&nbsp;/g, " ")
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
@@ -18,8 +38,19 @@ function stripHtmlTags(text: string): string {
     .replace(/&#8212;/g, "—")
     .replace(/&#8211;/g, "–")
     .replace(/&apos;/g, "'")
-    .replace(/&amp;/g, "&")  // Must be last to avoid double-decoding
-    .trim();
+    .replace(/&amp;/g, "&");  // Must be last to avoid double-decoding
+  
+  // Remove any remaining code patterns
+  result = result
+    .replace(/\bvar\s+\w+\s*=\s*[^;]*;/g, "")  // var declarations
+    .replace(/\blet\s+\w+\s*=\s*[^;]*;/g, "")  // let declarations  
+    .replace(/\bconst\s+\w+\s*=\s*[^;]*;/g, "")  // const declarations
+    .replace(/\bfunction\s+\w+\s*\([^)]*\)\s*\{[^}]*\}/g, "");  // function declarations
+  
+  // Clean up multiple spaces
+  result = result.replace(/\s+/g, " ").trim();
+  
+  return result;
 }
 
 function generateSlug(title: string): string {
