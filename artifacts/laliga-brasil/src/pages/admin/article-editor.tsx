@@ -127,10 +127,6 @@ export default function AdminArticleEditor() {
       toast({ title: "Erro", description: "Título é obrigatório.", variant: "destructive" });
       return;
     }
-    if (!formData.excerpt.trim()) {
-      toast({ title: "Erro", description: "Resumo é obrigatório.", variant: "destructive" });
-      return;
-    }
     if (!formData.content.trim()) {
       toast({ title: "Erro", description: "Conteúdo é obrigatório.", variant: "destructive" });
       return;
@@ -139,6 +135,15 @@ export default function AdminArticleEditor() {
     const payload = { ...formData };
     if (forceStatus) payload.status = forceStatus;
     if (payload.teamId) payload.teamId = parseInt(payload.teamId as any);
+    // Auto-fill excerpt from subtitle or first sentences of content
+    if (!payload.excerpt?.trim()) {
+      if (payload.subtitle?.trim()) {
+        payload.excerpt = payload.subtitle;
+      } else {
+        const plain = payload.content.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+        payload.excerpt = plain.substring(0, 200).trim() + (plain.length > 200 ? "..." : "");
+      }
+    }
     
     // Remover coAuthors do payload antes de enviar
     const { coAuthors, ...apiPayload } = payload;
@@ -242,17 +247,6 @@ export default function AdminArticleEditor() {
                 />
               </div>
               
-              <div>
-                <label className="block text-sm font-bold text-muted-foreground uppercase tracking-wider mb-3">Resumo / Linha Fina</label>
-                <textarea 
-                  name="excerpt" 
-                  value={formData.excerpt} 
-                  onChange={handleChange} 
-                  rows={2}
-                  placeholder="Um resumo impactante que aparecerá como subtítulo..."
-                  className="w-full bg-background border border-border rounded-lg px-4 py-3 text-gray-300 focus:border-primary focus:ring-2 focus:ring-primary/50 focus:outline-none transition-all resize-none placeholder-muted-foreground/50"
-                />
-              </div>
             </div>
 
             {/* Editor de Conteúdo */}

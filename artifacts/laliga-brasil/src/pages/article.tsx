@@ -69,7 +69,7 @@ export default function ArticleView() {
             </h1>
             
             {article.subtitle && (
-              <p className="text-lg md:text-xl text-primary/80 italic font-medium mb-6">
+              <p className="text-lg md:text-xl text-gray-300 italic font-medium mb-6">
                 {article.subtitle}
               </p>
             )}

@@ -220,7 +220,7 @@ export default function AdminImport() {
 
                         {/* Subtitle */}
                         {article.subtitle && (
-                          <p className="text-xs text-primary/80 italic mb-2">
+                          <p className="text-xs text-gray-400 italic mb-2">
                             {article.subtitle}
                           </p>
                         )}

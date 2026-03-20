@@ -40,7 +40,7 @@ export function ArticleCard({ article, featured = false }: { article: Article, f
             {article.title}
           </h2>
           {article.subtitle && (
-            <p className="text-primary/80 italic text-sm md:text-base mb-3 max-w-3xl font-medium">
+            <p className="text-gray-300 italic text-sm md:text-base mb-3 max-w-3xl font-medium">
               {article.subtitle}
             </p>
           )}
@@ -74,7 +74,7 @@ export function ArticleCard({ article, featured = false }: { article: Article, f
           {article.title}
         </h3>
         {article.subtitle && (
-          <p className="text-primary/70 italic text-xs mb-2 line-clamp-1">
+          <p className="text-gray-400 italic text-xs mb-2 line-clamp-1">
             {article.subtitle}
           </p>
         )}
