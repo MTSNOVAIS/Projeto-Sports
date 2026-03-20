@@ -9,204 +9,37 @@ const openai = new OpenAI({
   apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
 });
 
-// Comprehensive Spanish to Portuguese football translation dictionary
-const translationDict: Record<string, string> = {
-  // Teams
-  "Real Madrid": "Real Madrid",
-  "Barcelona": "Barcelona", 
-  "Atlético Madrid": "Atlético Madrid",
-  "Aston Villa": "Aston Villa",
-  "Manchester": "Manchester",
-  "Liverpool": "Liverpool",
-  "Arsenal": "Arsenal",
-  "Chelsea": "Chelsea",
-  
-  // Common verbs
-  "ha vencido": "venceu",
-  "han vencido": "venceram",
-  "vencido": "vencido",
-  "ganado": "ganhou",
-  "ha ganado": "ganhou",
-  "marcó": "marcou",
-  "ha marcado": "marcou",
-  "jugó": "jogou",
-  "ha jugado": "jogou",
-  "está jugando": "está jogando",
-  "sigue": "segue",
-  "continúa": "continua",
-  "será": "será",
-  "podría": "poderia",
-  "puede": "pode",
-  
-  // Common nouns
-  "equipo": "time",
-  "equipos": "times",
-  "el equipo": "o time",
-  "los equipos": "os times",
-  "la competición": "a competição",
-  "competición": "competição",
-  "partido": "partida",
-  "partidos": "partidas",
-  "los partidos": "as partidas",
-  "gol": "gol",
-  "goles": "gols",
-  "los goles": "os gols",
-  "victoria": "vitória",
-  "victorias": "vitórias",
-  "derrota": "derrota",
-  "derrotas": "derrotas",
-  "empate": "empate",
-  "jugador": "jogador",
-  "jugadores": "jogadores",
-  "el jugador": "o jogador",
-  "los jugadores": "os jogadores",
-  "técnico": "técnico",
-  "entrenador": "técnico",
-  "portero": "goleiro",
-  "porteros": "goleiros",
-  "defensa": "zagueiro",
-  "defensas": "zagueiros",
-  "delantero": "atacante",
-  "delanteros": "atacantes",
-  "centrocampista": "meia",
-  "centrocampistas": "meias",
-  "árbitro": "árbitro",
-  "árbitros": "árbitros",
-  "entrenador": "técnico",
-  "director técnico": "técnico",
-  
-  // Phases and tournaments
-  "fase de grupos": "fase de grupos",
-  "fase de liguilla": "fase de grupos",
-  "eliminatoria": "mata-mata",
-  "semifinal": "semifinal",
-  "final": "final",
-  "vuelta": "confronto de volta",
-  "ida": "primeira mão",
-  "primera mano": "primeira mão",
-  "segunda mano": "segunda mão",
-  
-  // Leagues and competitions
-  "liga": "liga",
-  "La Liga": "La Liga",
-  "Copa": "Copa",
-  "Copa del Rey": "Copa do Rei",
-  "Supercopa": "Supercopa",
-  "Champions": "Champions",
-  "Europa League": "Europa League",
-  "europeo": "europeu",
-  "nacional": "nacional",
-  "internacional": "internacional",
-  
-  // Cards and fouls
-  "tarjeta roja": "cartão vermelho",
-  "tarjeta amarilla": "cartão amarelo",
-  "roja": "vermelho",
-  "amarilla": "amarelo",
-  "penalti": "pênalti",
-  "penal": "pênalti",
-  "fuera de juego": "impedimento",
-  
-  // Actions
-  "marcó": "marcou",
-  "anotó": "marcou",
-  "metiló gol": "marcou",
-  "pateó": "chutou",
-  "regatea": "dribleia",
-  "pase": "passe",
-  "ataque": "ataque",
-  "defensa": "defesa",
-  "tiro": "chute",
-  "tiros": "chutes",
-  
-  // Locations
-  "cancha": "campo",
-  "campo": "campo",
-  "estadio": "estádio",
-  "villa": "villa",
-  "Park": "Park",
-  "francés": "francês",
-  "francesa": "francesa",
-  "inglés": "inglês",
-  "inglesa": "inglesa",
-  "español": "espanhol",
-  "española": "espanhola",
-  "brasileño": "brasileiro",
-  "brasileña": "brasileira",
-  
-  // Numbers and ordinals
-  "primero": "primeiro",
-  "segunda": "segunda",
-  "tercero": "terceiro",
-  "1-0": "1-0",
-  "2-0": "2-0",
-  "0-1": "0-1",
-  "0-2": "0-2",
-  
-  // Other
-  "él": "ele",
-  "ella": "ela",
-  "ellos": "eles",
-  "ellas": "elas",
-  "su": "seu",
-  "sus": "seus",
-  "en": "em",
-  "de": "de",
-  "el": "o",
-  "la": "a",
-  "los": "os",
-  "las": "as"
-};
+const TRANSLATION_SYSTEM_PROMPT = `Você é um jornalista esportivo brasileiro experiente, especializado em futebol europeu. Sua tarefa é traduzir e adaptar matérias de futebol para o português brasileiro, com um texto natural, fluido e jornalístico — como se a matéria tivesse sido escrita originalmente em português, por um redator esportivo brasileiro.
 
-// Translate using local dictionary (no external API needed)
-function translateText(text: string): string {
-  if (!text) return text;
-  
-  let translated = text;
-  
-  // Apply translations from dictionary (case-insensitive)
-  // Sort by length DESC to translate longer phrases first
-  const entries = Object.entries(translationDict).sort((a, b) => b[0].length - a[0].length);
-  
-  for (const [spanish, portuguese] of entries) {
-    // Create a regex that matches the word with proper escaping
-    // Match whole words only (surrounded by spaces, punctuation, or start/end)
-    const escaped = spanish.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const regex = new RegExp(`\\b${escaped}\\b|\\b${escaped}(?=[.,!?;:])|(?<=[\\s(])${escaped}\\b`, 'gi');
-    translated = translated.replace(regex, match => {
-      // Preserve case pattern
-      if (match[0] === match[0].toUpperCase() && spanish[0] === spanish[0].toLowerCase()) {
-        return portuguese.charAt(0).toUpperCase() + portuguese.slice(1);
-      }
-      return portuguese;
-    });
-  }
-  
-  return translated;
-}
+Regras obrigatórias:
+- Escreva em português brasileiro informal-jornalístico: direto, dinâmico, sem ser travado ou artificial.
+- Use a terminologia do futebol brasileiro: "gol" (não "golaço" sem motivo), "chute", "pênalti", "impedimento", "falta", "cartão amarelo/vermelho", "goleiro", "zagueiro", "lateral", "meia", "atacante", "ponta", "camisa 9", "técnico" (não "treinador"), "campo", "estádio", "torcida", "placar", "rodada", "tabela", "mata-mata", "oitavas/quartas/semifinal/final", "ida/volta", "título", "campeonato".
+- Mantenha nomes próprios como estão (jogadores, clubes, cidades, estádios, competições).
+- Não use construções artificiais de tradução automática. Reescreva frases quando necessário para que soem naturais.
+- Adapte expressões idiomáticas: encontre equivalentes brasileiros, não traduza palavra por palavra.
+- Use verbos no passado para fatos ocorridos, presente para declarações/contextos.
+- Não adicione informações que não existam no original.
+- Responda SOMENTE com JSON válido, sem markdown, sem explicações.`;
 
-// Generate AI subtitle for article
+const SUBTITLE_SYSTEM_PROMPT = `Você é um editor de esportes brasileiro. Crie subtítulos concisos e informativos para matérias de futebol, escritos em português brasileiro natural. O subtítulo deve complementar o título sem repeti-lo, capturando o ponto mais importante da matéria em até 15 palavras. Responda apenas com o texto do subtítulo, sem aspas ou formatação extra.`;
+
+// Generate AI subtitle for article (always in Brazilian Portuguese)
 async function generateSubtitle(title: string, content: string): Promise<string> {
   if (!title || !content) return "";
   
   try {
-    const prompt = `Given the following article title and content, generate a concise subtitle (10-15 words) that complements the title and captures the key aspect of the story. The subtitle should be engaging and informative without repeating the title.
+    const prompt = `Título: ${title}
+Conteúdo: ${content.substring(0, 600)}
 
-Title: ${title}
-Content: ${content.substring(0, 500)}
-
-Respond with ONLY the subtitle text, no quotes or additional formatting.`;
+Crie um subtítulo em português brasileiro (até 15 palavras) que complemente o título sem repeti-lo.`;
 
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
-        {
-          role: "system",
-          content: "You are a professional sports journalist. Generate concise, engaging subtitles that complement article titles. Respond with only the subtitle text.",
-        },
+        { role: "system", content: SUBTITLE_SYSTEM_PROMPT },
         { role: "user", content: prompt },
       ],
-      max_completion_tokens: 50,
+      max_completion_tokens: 60,
     });
 
     const subtitle = completion.choices[0]?.message?.content || "";
@@ -217,22 +50,46 @@ Respond with ONLY the subtitle text, no quotes or additional formatting.`;
   }
 }
 
-// Translate article to Brazilian Portuguese (currently keeping in Spanish, awaiting translation API)
+// Translate article to Brazilian Portuguese using AI
 async function translateArticle(title: string, content: string, sourceName: string, sourceLanguage: string = "es"): Promise<{ title: string; content: string; excerpt: string; subtitle: string }> {
   if (!title || !content) return { title, content, excerpt: "", subtitle: "" };
   
+  const langLabel = sourceLanguage === "en" ? "inglês" : "espanhol";
+
   try {
-    // For now, keep in original language but ensure excerpt is generated
-    // TODO: Implement translation once MyMemory API is available again
-    const excerpt = generateExcerpt(content);
-    const subtitle = await generateSubtitle(title, content);
-    
-    return {
-      title,
-      content,
-      excerpt,
-      subtitle
-    };
+    const prompt = `Traduza e adapte a matéria abaixo do ${langLabel} para o português brasileiro. Fonte: ${sourceName || "desconhecida"}.
+
+Retorne um JSON com as chaves: "title", "excerpt", "content".
+- "title": título traduzido
+- "excerpt": resumo de 2 frases (máximo 200 caracteres) em português
+- "content": corpo completo da matéria traduzido
+
+Título original: ${title}
+Conteúdo original: ${content}`;
+
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        { role: "system", content: TRANSLATION_SYSTEM_PROMPT },
+        { role: "user", content: prompt },
+      ],
+      max_completion_tokens: 4000,
+    });
+
+    const responseText = completion.choices[0]?.message?.content || "{}";
+    let parsed: { title?: string; excerpt?: string; content?: string };
+    try {
+      parsed = JSON.parse(responseText);
+    } catch {
+      parsed = {};
+    }
+
+    const translatedTitle = parsed.title || title;
+    const translatedContent = parsed.content || content;
+    const excerpt = parsed.excerpt || generateExcerpt(translatedContent);
+    const subtitle = await generateSubtitle(translatedTitle, translatedContent);
+
+    return { title: translatedTitle, content: translatedContent, excerpt, subtitle };
   } catch (err) {
     console.error("Translation error:", err);
     const excerpt = generateExcerpt(content);
@@ -833,55 +690,50 @@ router.post("/scraper/fetch", async (req, res): Promise<void> => {
 router.post("/scraper/translate", async (req, res): Promise<void> => {
   const { title, content, excerpt, sourceName, sourceLanguage = "es" } = req.body;
 
-  if (!title || !content || !excerpt) {
-    res.status(400).json({ error: "title, content, and excerpt are required" });
+  if (!title || !content) {
+    res.status(400).json({ error: "title and content are required" });
     return;
   }
 
   try {
-    const isEnglish = sourceLanguage === "en";
-    const prompt = isEnglish
-      ? `Translate and adapt the following football article from English to Brazilian Portuguese. The article is from ${sourceName}. Adapt cultural references and football terminology to Brazilian context. Return a JSON with keys: title, excerpt, content.
+    const langLabel = sourceLanguage === "en" ? "inglês" : "espanhol";
+    const prompt = `Traduza e adapte a matéria abaixo do ${langLabel} para o português brasileiro. Fonte: ${sourceName || "desconhecida"}.
 
-Title: ${title}
-Excerpt: ${excerpt}
-Content: ${content}`
-      : `Translate and adapt the following football article from Spanish to Brazilian Portuguese. The article is from ${sourceName || "source"}. Adapt cultural references and football terminology to Brazilian context. Return a JSON with keys: title, excerpt, content.
+Retorne um JSON com as chaves: "title", "excerpt", "content".
+- "title": título traduzido
+- "excerpt": resumo de 2 frases (máximo 200 caracteres) em português
+- "content": corpo completo da matéria traduzido
 
-Title: ${title}
-Excerpt: ${excerpt}
-Content: ${content}`;
+Título original: ${title}
+Resumo original: ${excerpt || ""}
+Conteúdo original: ${content}`;
 
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
-        {
-          role: "system",
-          content: "You are a professional sports journalist who translates football articles to Brazilian Portuguese. Always return valid JSON only, no markdown.",
-        },
+        { role: "system", content: TRANSLATION_SYSTEM_PROMPT },
         { role: "user", content: prompt },
       ],
-      max_completion_tokens: 3000,
+      max_completion_tokens: 4000,
     });
 
     const responseText = completion.choices[0]?.message?.content || "{}";
-    let parsed;
+    let parsed: { title?: string; excerpt?: string; content?: string };
     try {
       parsed = JSON.parse(responseText);
     } catch {
-      parsed = { title, excerpt, content };
+      parsed = {};
     }
 
-    // Generate subtitle for translated article
-    const subtitle = await generateSubtitle(
-      parsed.title || title,
-      parsed.content || content
-    );
+    const translatedTitle = parsed.title || title;
+    const translatedContent = parsed.content || content;
+
+    const subtitle = await generateSubtitle(translatedTitle, translatedContent);
 
     res.json({
-      title: parsed.title || title,
-      excerpt: parsed.excerpt || excerpt,
-      content: parsed.content || content,
+      title: translatedTitle,
+      excerpt: parsed.excerpt || excerpt || "",
+      content: translatedContent,
       subtitle,
     });
   } catch (err) {
