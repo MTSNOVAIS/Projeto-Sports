@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Link from "@tiptap/extension-link";
@@ -31,6 +31,14 @@ export function RichTextEditor({ value, onChange, placeholder = "Escreva o conte
       },
     },
   });
+
+  // Sync external value into editor when it changes (e.g. when article data loads async)
+  useEffect(() => {
+    if (!editor) return;
+    if (value !== editor.getHTML()) {
+      editor.commands.setContent(value, false);
+    }
+  }, [value, editor]);
 
   if (!editor) {
     return <div>Carregando editor...</div>;
