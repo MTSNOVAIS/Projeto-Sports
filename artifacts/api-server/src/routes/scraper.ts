@@ -408,22 +408,45 @@ function extractMainContent(html: string): string {
   return useParagraphs.join("\n\n");
 }
 
+// Helper function to extract OG/Twitter image from HTML
+function extractOgImage(html: string): string | null {
+  const patterns = [
+    /<meta\s+property=["']og:image["']\s+content=["']([^"']+)["']/i,
+    /<meta\s+content=["']([^"']+)["']\s+property=["']og:image["']/i,
+    /<meta\s+name=["']twitter:image["']\s+content=["']([^"']+)["']/i,
+    /<meta\s+content=["']([^"']+)["']\s+name=["']twitter:image["']/i,
+    /<meta\s+property=["']og:image:url["']\s+content=["']([^"']+)["']/i,
+  ];
+  for (const p of patterns) {
+    const m = html.match(p);
+    if (m && m[1] && m[1].startsWith("http")) return m[1];
+  }
+  return null;
+}
+
 // Helper function to fetch full article content from URL
-async function fetchFullArticleContent(url: string): Promise<string> {
+// Returns content text, OG image URL, and final URL after redirects
+async function fetchArticleData(url: string): Promise<{ content: string; image: string | null; finalUrl: string }> {
+  const empty = { content: "", image: null, finalUrl: url };
   try {
     const response = await fetch(url, {
       headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "pt-BR,pt;q=0.9,en;q=0.8,es;q=0.7",
       },
       timeout: 15000,
-    });
+      redirect: "follow",
+    } as any);
 
     if (!response.ok) {
       console.warn(`Failed to fetch article from ${url}: ${response.status}`);
-      return "";
+      return empty;
     }
 
+    const finalUrl = (response as any).url || url;
     const html = await response.text();
+    const image = extractOgImage(html);
     
     // First, remove unnecessary sections
     let cleaned = cleanArticleContent(html);
@@ -494,12 +517,21 @@ async function fetchFullArticleContent(url: string): Promise<string> {
     // Join paragraphs with double newlines
     const finalContent = cleanedParagraphs.join("\n\n");
     
-    // Return content only if substantial (more than 300 chars)
-    return finalContent.length > 300 ? finalContent : "";
+    return {
+      content: finalContent.length > 300 ? finalContent : "",
+      image,
+      finalUrl,
+    };
   } catch (err) {
-    console.error(`Error fetching full article from ${url}:`, err);
-    return "";
+    console.error(`Error fetching article data from ${url}:`, err);
+    return empty;
   }
+}
+
+// Keep backward-compat alias that only returns content
+async function fetchFullArticleContent(url: string): Promise<string> {
+  const { content } = await fetchArticleData(url);
+  return content;
 }
 
 // Helper function to fetch RSS feed
@@ -536,6 +568,10 @@ async function fetchRssFeed(feedUrl: string): Promise<any[]> {
       const linkMatch = /<link>([\s\S]*?)<\/link>/.exec(itemContent);
       const pubDateMatch = /<pubDate>([\s\S]*?)<\/pubDate>/.exec(itemContent);
       const imageMatch = /<image.*?url>([\s\S]*?)<\/url>/.exec(itemContent);
+      // Google News RSS provides the actual source site via <source url="...">Name</source>
+      const sourceTagMatch = /<source\s+url=["']([^"']+)["'][^>]*>([\s\S]*?)<\/source>/i.exec(itemContent);
+      const sourceUrl = sourceTagMatch ? sourceTagMatch[1].trim() : "";
+      const sourceNameFromTag = sourceTagMatch ? stripHtmlTags(sourceTagMatch[2]).trim() : "";
 
       if (titleMatch && linkMatch) {
         // Clean title and description - remove HTML tags and decode entities
@@ -545,13 +581,15 @@ async function fetchRssFeed(feedUrl: string): Promise<any[]> {
         const cleanDesc = stripHtmlTags(rawDesc).trim();
         
         // Only add if we have meaningful content
-        if (cleanTitle && cleanDesc) {
+        if (cleanTitle) {
           articles.push({
             title: cleanTitle,
-            description: cleanDesc,  // Keep full description, truncate in the endpoint
+            description: cleanDesc,
             link: linkMatch[1].trim(),
             pubDate: pubDateMatch ? new Date(pubDateMatch[1]).toISOString() : new Date().toISOString(),
             image: imageMatch ? imageMatch[1] : null,
+            sourceUrl,
+            sourceName: sourceNameFromTag,
           });
         }
       }
@@ -593,23 +631,32 @@ router.post("/scraper/search", async (req, res): Promise<void> => {
         const cleanTitle = stripHtmlTags(article.title || "");
         const cleanDescription = stripHtmlTags(article.description || "");
 
-        const fullContent = await fetchFullArticleContent(article.link || "");
-        const rawContent = fullContent || cleanDescription;
+        // Fetch full content, OG image, and final URL (follows Google News redirects)
+        const articleData = await fetchArticleData(article.link || "");
+        const rawContent = articleData.content || cleanDescription;
 
         if (!rawContent || rawContent.length < 100) {
           return null;
         }
 
-        // Detect language from URL heuristic
-        const isSpanish = /marca|as\.com|sport\.es|mundodeportivo|diarioas|abc\.es|elmundo|lavanguardia/i.test(article.link || "");
-        const sourceLanguage = isSpanish ? "es" : "en";
+        // Use actual redirected URL (not Google News redirect) for source name
+        const actualUrl = articleData.finalUrl || article.sourceUrl || article.link || "";
 
-        // Extract source name from URL
-        let sourceName = "Google News";
-        try {
-          const hostname = new URL(article.link || "").hostname.replace("www.", "");
-          sourceName = hostname.split(".")[0].charAt(0).toUpperCase() + hostname.split(".")[0].slice(1);
-        } catch {}
+        // Prefer source name from RSS <source> tag, fall back to extracting from final URL
+        let sourceName = article.sourceName || "";
+        if (!sourceName) {
+          try {
+            const hostname = new URL(actualUrl).hostname.replace("www.", "");
+            const domainPart = hostname.split(".")[0];
+            sourceName = domainPart.charAt(0).toUpperCase() + domainPart.slice(1);
+          } catch {
+            sourceName = "Google News";
+          }
+        }
+
+        // Detect language from actual URL
+        const isSpanish = /marca|as\.com|sport\.es|mundodeportivo|abc\.es|elmundo|lavanguardia|espn\.es/i.test(actualUrl);
+        const sourceLanguage = isSpanish ? "es" : "en";
 
         const translated = await translateArticle(cleanTitle, rawContent, sourceName, sourceLanguage);
 
@@ -618,8 +665,8 @@ router.post("/scraper/search", async (req, res): Promise<void> => {
           subtitle: translated.subtitle,
           excerpt: translated.excerpt,
           content: translated.content,
-          coverImage: null,
-          originalUrl: article.link || "",
+          coverImage: articleData.image || null,
+          originalUrl: actualUrl || article.link || "",
           sourceName,
           sourceLanguage,
           publishedAt: article.pubDate || new Date().toISOString(),
@@ -657,9 +704,9 @@ router.post("/scraper/fetch-all", async (req, res): Promise<void> => {
               const cleanTitle = stripHtmlTags(article.title || "");
               const cleanDescription = stripHtmlTags(article.description || "");
 
-              // Fetch full content from the article URL
-              const fullContent = await fetchFullArticleContent(article.link || "");
-              const rawContent = fullContent || cleanDescription;
+              // Fetch full content, OG image and final URL from the article
+              const articleData = await fetchArticleData(article.link || "");
+              const rawContent = articleData.content || cleanDescription;
 
               // Translate to Brazilian Portuguese
               const translated = await translateArticle(cleanTitle, rawContent, source.name, source.language);
@@ -669,8 +716,8 @@ router.post("/scraper/fetch-all", async (req, res): Promise<void> => {
                 subtitle: translated.subtitle,
                 excerpt: translated.excerpt,
                 content: translated.content,
-                coverImage: article.image || null,
-                originalUrl: article.link || "",
+                coverImage: articleData.image || article.image || null,
+                originalUrl: articleData.finalUrl || article.link || "",
                 sourceName: source.name,
                 sourceLanguage: source.language,
                 publishedAt: article.pubDate || new Date().toISOString(),

@@ -1,11 +1,12 @@
-import React, { useState, useMemo, useRef } from "react";
+import React, { useState, useRef } from "react";
 import { Link } from "wouter";
-import { useListTeams } from "@/hooks/use-teams";
 import { useCreateArticle } from "@/hooks/use-articles";
-import { DownloadCloud, Loader2, CheckCircle2, Search, Zap, X, Rss } from "lucide-react";
+import { DownloadCloud, Loader2, CheckCircle2, Search, Zap, X, Rss, Clock, Globe } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { useQuery } from "@tanstack/react-query";
+import { format, parseISO } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 const LA_LIGA_FILTERS = [
   { label: "La Liga", query: "La Liga" },
@@ -22,20 +23,26 @@ const LA_LIGA_FILTERS = [
   { label: "Girona", query: "Girona FC" },
 ];
 
+function formatDate(iso: string) {
+  try {
+    return format(parseISO(iso), "dd MMM yyyy 'às' HH:mm", { locale: ptBR });
+  } catch {
+    return "";
+  }
+}
+
 export default function AdminImport() {
-  const { data: teams, isLoading: loadingTeams } = useListTeams();
   const createMutation = useCreateArticle();
   const { toast } = useToast();
 
   const [mode, setMode] = useState<"timeline" | "search">("timeline");
   const [searchInput, setSearchInput] = useState("");
   const [activeQuery, setActiveQuery] = useState("");
-  const [selectedTeams, setSelectedTeams] = useState<number[]>([]);
   const [importingUrl, setImportingUrl] = useState<string | null>(null);
   const [importedUrls, setImportedUrls] = useState<Set<string>>(new Set());
   const searchRef = useRef<HTMLInputElement>(null);
 
-  // Timeline feed (existing RSS sources)
+  // Timeline feed
   const { data: timelineData, isLoading: loadingTimeline } = useQuery({
     queryKey: ["scraper-all"],
     queryFn: async () => {
@@ -47,12 +54,11 @@ export default function AdminImport() {
       if (!response.ok) throw new Error("Failed to fetch articles");
       return response.json();
     },
-    enabled: true,
     staleTime: 5 * 60 * 1000,
   });
 
   // Search results
-  const { data: searchData, isLoading: loadingSearch, refetch: runSearch } = useQuery({
+  const { data: searchData, isLoading: loadingSearch } = useQuery({
     queryKey: ["scraper-search", activeQuery],
     queryFn: async () => {
       if (!activeQuery) return { articles: [] };
@@ -70,31 +76,15 @@ export default function AdminImport() {
 
   const timelineArticles = timelineData?.articles || [];
   const searchArticles = searchData?.articles || [];
-
-  const filteredTimeline = useMemo(() => {
-    if (selectedTeams.length === 0) return timelineArticles;
-    const selectedNames = teams
-      ?.filter(t => selectedTeams.includes(t.id))
-      .flatMap(t => [t.name.toLowerCase(), t.slug.toLowerCase()]) || [];
-    return timelineArticles.filter((a: any) =>
-      selectedNames.some(n => a.title.toLowerCase().includes(n))
-    );
-  }, [timelineArticles, selectedTeams, teams]);
-
-  const displayedArticles = mode === "search" ? searchArticles : filteredTimeline;
+  const displayedArticles = mode === "search" ? searchArticles : timelineArticles;
   const isLoading = mode === "search" ? loadingSearch : loadingTimeline;
 
   const handleSearch = (q?: string) => {
-    const query = q ?? searchInput.trim();
+    const query = (q ?? searchInput).trim();
     if (!query) return;
     setActiveQuery(query);
     setMode("search");
-    if (q) setSearchInput(q);
-  };
-
-  const handleFilterClick = (query: string) => {
-    setSearchInput(query);
-    handleSearch(query);
+    if (q !== undefined) setSearchInput(q);
   };
 
   const handleClearSearch = () => {
@@ -124,7 +114,7 @@ export default function AdminImport() {
           subtitle: article.subtitle || "",
           excerpt: article.excerpt || article.subtitle || "",
           content: article.content,
-          coverImage: article.coverImage,
+          coverImage: article.coverImage || null,
           category: "Internacional",
           authorName: article.sourceName,
           status: "published",
@@ -157,41 +147,43 @@ export default function AdminImport() {
           <h1 className="text-3xl font-display font-bold text-white flex items-center gap-3">
             <Zap className="text-primary" /> Importar Matérias
           </h1>
-          <p className="text-muted-foreground mt-1 text-sm">Busque matérias de qualquer fonte ou navegue pela timeline das fontes cadastradas.</p>
+          <p className="text-muted-foreground mt-1 text-sm">
+            Busque matérias de qualquer fonte ou navegue pela timeline das fontes cadastradas.
+          </p>
         </div>
 
         {/* Search Bar */}
-        <div className="mb-4">
-          <div className="relative flex gap-2">
-            <div className="relative flex-1">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <input
-                ref={searchRef}
-                type="text"
-                value={searchInput}
-                onChange={e => setSearchInput(e.target.value)}
-                onKeyDown={e => e.key === "Enter" && handleSearch()}
-                placeholder="Buscar matérias... ex: Vini Jr, Transferências, Champions League"
-                className="w-full bg-card border border-border rounded-xl pl-11 pr-10 py-3 text-white placeholder-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none transition-all"
-              />
-              {searchInput && (
-                <button
-                  onClick={handleClearSearch}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-white"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              )}
-            </div>
-            <button
-              onClick={() => handleSearch()}
-              disabled={!searchInput.trim() || loadingSearch}
-              className="px-5 py-3 bg-primary hover:bg-primary/80 text-white rounded-xl font-bold text-sm transition-colors disabled:opacity-50 flex items-center gap-2"
-            >
-              {loadingSearch && mode === "search" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
-              Buscar
-            </button>
+        <div className="mb-4 flex gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <input
+              ref={searchRef}
+              type="text"
+              value={searchInput}
+              onChange={e => setSearchInput(e.target.value)}
+              onKeyDown={e => e.key === "Enter" && handleSearch()}
+              placeholder="Buscar matérias... ex: Vini Jr, Transferências, Champions League"
+              className="w-full bg-card border border-border rounded-xl pl-11 pr-10 py-3 text-white placeholder-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none transition-all"
+            />
+            {searchInput && (
+              <button
+                onClick={handleClearSearch}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-white"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
           </div>
+          <button
+            onClick={() => handleSearch()}
+            disabled={!searchInput.trim() || loadingSearch}
+            className="px-5 py-3 bg-primary hover:bg-primary/80 text-white rounded-xl font-bold text-sm transition-colors disabled:opacity-50 flex items-center gap-2"
+          >
+            {loadingSearch && mode === "search"
+              ? <Loader2 className="w-4 h-4 animate-spin" />
+              : <Search className="w-4 h-4" />}
+            Buscar
+          </button>
         </div>
 
         {/* La Liga Quick Filters */}
@@ -201,7 +193,7 @@ export default function AdminImport() {
             {LA_LIGA_FILTERS.map(f => (
               <button
                 key={f.label}
-                onClick={() => handleFilterClick(f.query)}
+                onClick={() => handleSearch(f.query)}
                 className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-all ${
                   activeQuery === f.query && mode === "search"
                     ? "bg-primary border-primary text-white"
@@ -214,160 +206,152 @@ export default function AdminImport() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* Sidebar — only in timeline mode */}
-          {mode === "timeline" && (
-            <div className="lg:col-span-1">
-              <div className="bg-card rounded-xl border border-border p-4 sticky top-4">
-                <h2 className="font-bold text-sm uppercase tracking-widest text-muted-foreground mb-4 flex items-center justify-between">
-                  <span>Filtrar por Time</span>
-                  {selectedTeams.length > 0 && (
-                    <button onClick={() => setSelectedTeams([])} className="text-xs text-primary hover:text-accent underline">
-                      Limpar
-                    </button>
-                  )}
-                </h2>
-                {loadingTeams ? (
-                  <div className="p-4 text-center text-muted-foreground text-sm">Carregando...</div>
+        {/* Content Panel */}
+        <div className="bg-card rounded-xl border border-border overflow-hidden">
+          {/* Panel Header */}
+          <div className="p-4 border-b border-border bg-muted/30 flex justify-between items-center">
+            <div className="flex items-center gap-2">
+              {mode === "search" ? (
+                <>
+                  <Search className="w-4 h-4 text-primary" />
+                  <h2 className="font-bold text-white">
+                    Resultados para "{activeQuery}"
+                    {searchArticles.length > 0 && (
+                      <span className="text-muted-foreground font-normal ml-2">
+                        ({searchArticles.length})
+                      </span>
+                    )}
+                  </h2>
+                </>
+              ) : (
+                <>
+                  <Rss className="w-4 h-4 text-primary" />
+                  <h2 className="font-bold text-white">Timeline de Matérias</h2>
+                </>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              {isLoading && <Loader2 className="w-4 h-4 animate-spin text-primary" />}
+              {mode === "search" && (
+                <button
+                  onClick={handleClearSearch}
+                  className="text-xs text-muted-foreground hover:text-white flex items-center gap-1 border border-border rounded-lg px-3 py-1.5 transition-colors"
+                >
+                  <Rss className="w-3 h-3" /> Ver timeline
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Articles Grid */}
+          <div className="p-6 max-h-[calc(100vh-400px)] overflow-y-auto">
+            {isLoading ? (
+              <div className="flex flex-col items-center justify-center py-20">
+                <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4" />
+                <p className="text-muted-foreground text-sm">
+                  {mode === "search" ? "Buscando e traduzindo matérias..." : "Carregando matérias..."}
+                </p>
+                <p className="text-muted-foreground/50 text-xs mt-1">Isso pode levar alguns segundos</p>
+              </div>
+            ) : displayedArticles.length === 0 ? (
+              <div className="text-center py-20 text-muted-foreground">
+                {mode === "search" ? (
+                  <>
+                    <Search className="w-12 h-12 mx-auto mb-4 opacity-20" />
+                    <p>Nenhuma matéria encontrada para "{activeQuery}".</p>
+                    <p className="text-xs mt-1 opacity-60">Tente outro termo ou use um dos filtros acima.</p>
+                  </>
                 ) : (
-                  <div className="space-y-2">
-                    {teams?.map(team => (
-                      <button
-                        key={team.id}
-                        onClick={() =>
-                          setSelectedTeams(prev =>
-                            prev.includes(team.id) ? prev.filter(id => id !== team.id) : [...prev, team.id]
-                          )
-                        }
-                        className={`w-full text-left px-3 py-2 rounded-lg border transition-all text-sm ${
-                          selectedTeams.includes(team.id)
-                            ? "bg-primary/20 border-primary text-white"
-                            : "bg-muted/30 border-border hover:border-primary/50 text-muted-foreground hover:text-white"
-                        }`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <span>{team.name}</span>
-                          {selectedTeams.includes(team.id) && <CheckCircle2 className="w-4 h-4 text-primary" />}
-                        </div>
-                      </button>
-                    ))}
-                  </div>
+                  <>
+                    <DownloadCloud className="w-12 h-12 mx-auto mb-4 opacity-20" />
+                    <p>Nenhuma matéria disponível no momento.</p>
+                  </>
                 )}
               </div>
-            </div>
-          )}
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                {displayedArticles.map((article: any, idx: number) => {
+                  const isImported = importedUrls.has(article.originalUrl);
+                  const isImporting = importingUrl === article.originalUrl;
+                  const dateStr = article.publishedAt ? formatDate(article.publishedAt) : "";
 
-          {/* Main Content */}
-          <div className={mode === "timeline" ? "lg:col-span-3" : "lg:col-span-4"}>
-            <div className="bg-card rounded-xl border border-border overflow-hidden">
-              {/* Header */}
-              <div className="p-4 border-b border-border bg-muted/30 flex justify-between items-center">
-                <div className="flex items-center gap-2">
-                  {mode === "search" ? (
-                    <>
-                      <Search className="w-4 h-4 text-primary" />
-                      <h2 className="font-bold text-white">
-                        Resultados para "{activeQuery}"
-                        {searchArticles.length > 0 && <span className="text-muted-foreground font-normal ml-2">({searchArticles.length} matérias)</span>}
-                      </h2>
-                    </>
-                  ) : (
-                    <>
-                      <Rss className="w-4 h-4 text-primary" />
-                      <h2 className="font-bold text-white">
-                        Timeline{selectedTeams.length > 0 && ` (${filteredTimeline.length})`}
-                      </h2>
-                    </>
-                  )}
-                </div>
-                <div className="flex items-center gap-2">
-                  {isLoading && <Loader2 className="w-4 h-4 animate-spin text-primary" />}
-                  {mode === "search" && (
-                    <button
-                      onClick={handleClearSearch}
-                      className="text-xs text-muted-foreground hover:text-white flex items-center gap-1 border border-border rounded-lg px-3 py-1.5 hover:border-border/80 transition-colors"
+                  return (
+                    <div
+                      key={idx}
+                      className={`rounded-xl border overflow-hidden flex flex-col transition-all ${
+                        isImported
+                          ? "bg-emerald-500/10 border-emerald-500/30 opacity-60"
+                          : "bg-muted/20 border-border hover:border-primary/40 hover:shadow-lg hover:shadow-primary/5"
+                      }`}
                     >
-                      <Rss className="w-3 h-3" /> Ver timeline
-                    </button>
-                  )}
-                </div>
-              </div>
+                      {/* Cover Image */}
+                      <div className="aspect-video w-full overflow-hidden bg-muted relative flex-shrink-0">
+                        {article.coverImage ? (
+                          <img
+                            src={article.coverImage}
+                            alt={article.title}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).style.display = "none";
+                            }}
+                          />
+                        ) : (
+                          <div className="w-full h-full bg-gradient-to-br from-secondary/40 to-muted flex items-center justify-center">
+                            <Globe className="w-8 h-8 text-muted-foreground/30" />
+                          </div>
+                        )}
+                        {isImported && (
+                          <div className="absolute top-2 right-2 bg-emerald-500 text-white text-[10px] font-bold px-2 py-1 rounded flex items-center gap-1">
+                            <CheckCircle2 className="w-3 h-3" /> Importado
+                          </div>
+                        )}
+                      </div>
 
-              {/* Articles */}
-              <div className="p-6 space-y-4 max-h-[calc(100vh-380px)] overflow-y-auto">
-                {isLoading ? (
-                  <div className="flex flex-col items-center justify-center py-16">
-                    <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4" />
-                    <p className="text-muted-foreground text-sm">
-                      {mode === "search" ? "Buscando e traduzindo matérias..." : "Carregando e traduzindo matérias..."}
-                    </p>
-                    <p className="text-muted-foreground/60 text-xs mt-1">Isso pode levar alguns segundos</p>
-                  </div>
-                ) : displayedArticles.length === 0 ? (
-                  <div className="text-center py-16 text-muted-foreground">
-                    {mode === "search" ? (
-                      <>
-                        <Search className="w-12 h-12 mx-auto mb-4 opacity-20" />
-                        <p>Nenhuma matéria encontrada para "{activeQuery}".</p>
-                        <p className="text-xs mt-1 opacity-60">Tente outro termo ou use os filtros de La Liga acima.</p>
-                      </>
-                    ) : (
-                      <>
-                        <DownloadCloud className="w-12 h-12 mx-auto mb-4 opacity-20" />
-                        <p>Nenhuma matéria disponível no momento.</p>
-                      </>
-                    )}
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {displayedArticles.map((article: any, idx: number) => (
-                      <div
-                        key={idx}
-                        className={`p-4 rounded-xl border transition-all flex flex-col ${
-                          importedUrls.has(article.originalUrl)
-                            ? "bg-emerald-500/10 border-emerald-500/30 opacity-60"
-                            : "bg-muted/20 border-border hover:border-primary/40 hover:shadow-lg hover:shadow-primary/5"
-                        }`}
-                      >
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="text-[10px] font-bold uppercase text-blue-400 bg-blue-500/10 px-2 py-1 rounded">
+                      {/* Card Body */}
+                      <div className="p-4 flex flex-col flex-grow">
+                        {/* Source + Date */}
+                        <div className="flex items-center justify-between mb-2 gap-2">
+                          <span className="text-[10px] font-bold uppercase text-blue-400 bg-blue-500/10 px-2 py-1 rounded truncate max-w-[120px]">
                             {article.sourceName}
                           </span>
-                          {importedUrls.has(article.originalUrl) && (
-                            <span className="text-[10px] font-bold uppercase text-emerald-500 flex items-center gap-1">
-                              <CheckCircle2 className="w-3 h-3" /> Importado
+                          {dateStr && (
+                            <span className="text-[10px] text-muted-foreground flex items-center gap-1 shrink-0">
+                              <Clock className="w-3 h-3" /> {dateStr}
                             </span>
                           )}
                         </div>
 
-                        <h3 className="font-bold text-white leading-snug mb-1 text-sm flex-grow">
+                        {/* Title */}
+                        <h3 className="font-bold text-white leading-snug text-sm mb-1 line-clamp-3 flex-grow">
                           {article.title}
                         </h3>
 
+                        {/* Subtitle */}
                         {article.subtitle && (
                           <p className="text-xs text-gray-400 italic mb-2 line-clamp-2">
                             {article.subtitle}
                           </p>
                         )}
 
-                        <div className="flex justify-between items-center gap-2 text-xs text-muted-foreground mt-3 pt-3 border-t border-border/40">
+                        {/* Footer */}
+                        <div className="flex justify-between items-center gap-2 mt-3 pt-3 border-t border-border/40">
                           {article.originalUrl && (
                             <a
                               href={article.originalUrl}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="text-primary hover:text-accent underline truncate max-w-[120px]"
+                              className="text-[10px] text-primary hover:text-accent underline truncate max-w-[110px]"
                             >
                               Ver original →
                             </a>
                           )}
-                          {!importedUrls.has(article.originalUrl) && (
+                          {!isImported && (
                             <button
                               onClick={() => handleImport(article)}
-                              disabled={importingUrl === article.originalUrl}
+                              disabled={isImporting}
                               className="bg-white hover:bg-gray-200 text-black px-3 py-1.5 rounded-lg text-xs font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed ml-auto shrink-0"
                             >
-                              {importingUrl === article.originalUrl ? (
+                              {isImporting ? (
                                 <span className="flex items-center gap-1">
                                   <Loader2 className="w-3 h-3 animate-spin" /> Importando...
                                 </span>
@@ -376,11 +360,11 @@ export default function AdminImport() {
                           )}
                         </div>
                       </div>
-                    ))}
-                  </div>
-                )}
+                    </div>
+                  );
+                })}
               </div>
-            </div>
+            )}
           </div>
         </div>
       </div>
