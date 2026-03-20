@@ -8,6 +8,7 @@ interface Article {
   id: number;
   title: string;
   slug: string;
+  subtitle?: string | null;
   excerpt: string;
   coverImage?: string | null;
   category: string;
@@ -35,9 +36,14 @@ export function ArticleCard({ article, featured = false }: { article: Article, f
         </div>
         
         <div className="absolute bottom-0 left-0 p-6 md:p-8 w-full">
-          <h2 className="text-2xl md:text-4xl font-black text-white mb-3 leading-tight group-hover:text-primary transition-colors">
+          <h2 className="text-2xl md:text-4xl font-black text-white mb-2 leading-tight group-hover:text-primary transition-colors">
             {article.title}
           </h2>
+          {article.subtitle && (
+            <p className="text-primary/80 italic text-sm md:text-base mb-3 max-w-3xl font-medium">
+              {article.subtitle}
+            </p>
+          )}
           <p className="text-gray-300 line-clamp-2 md:text-lg mb-4 max-w-3xl">
             {article.excerpt}
           </p>
@@ -64,9 +70,14 @@ export function ArticleCard({ article, featured = false }: { article: Article, f
         )}
       </div>
       <div className="p-5 flex flex-col flex-grow">
-        <h3 className="text-xl font-bold mb-2 group-hover:text-primary transition-colors line-clamp-2 leading-tight">
+        <h3 className="text-xl font-bold mb-1 group-hover:text-primary transition-colors line-clamp-2 leading-tight">
           {article.title}
         </h3>
+        {article.subtitle && (
+          <p className="text-primary/70 italic text-xs mb-2 line-clamp-1">
+            {article.subtitle}
+          </p>
+        )}
         <p className="text-muted-foreground text-sm line-clamp-2 mb-4 flex-grow">
           {article.excerpt}
         </p>

@@ -64,9 +64,15 @@ export default function ArticleView() {
               )}
             </div>
             
-            <h1 className="text-4xl md:text-5xl lg:text-6xl font-black font-display text-white leading-[1.1] mb-6">
+            <h1 className="text-4xl md:text-5xl lg:text-6xl font-black font-display text-white leading-[1.1] mb-3">
               {article.title}
             </h1>
+            
+            {article.subtitle && (
+              <p className="text-lg md:text-xl text-primary/80 italic font-medium mb-6">
+                {article.subtitle}
+              </p>
+            )}
             
             <p className="text-xl text-gray-400 font-medium leading-relaxed mb-8 border-l-4 border-primary pl-4">
               {article.excerpt}
