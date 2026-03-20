@@ -46,37 +46,46 @@ export default function AdminImport() {
           .slice(0, 100) + "-" + Date.now().toString(36);
       };
 
-      toast({ title: "Importando...", description: `Salvando matéria de ${article.sourceName}...` });
+      toast({ title: "Traduzindo...", description: `Adaptando matéria de ${article.sourceName} para o português...` });
 
-      // Generate subtitle if not available
+      // Translate article to Brazilian Portuguese before importing
+      let title = article.title;
+      let excerpt = article.excerpt;
+      let content = article.content;
       let subtitle = article.subtitle || "";
-      if (!subtitle && article.title && article.content) {
-        try {
-          const subtitleResponse = await fetch(`${import.meta.env.BASE_URL}api/scraper/generate-subtitle`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              title: article.title,
-              content: article.content,
-            }),
-          });
-          if (subtitleResponse.ok) {
-            const subtitleData = await subtitleResponse.json();
-            subtitle = subtitleData.subtitle || "";
-          }
-        } catch (err) {
-          // Subtitle generation failed, continue without it
-          console.error("Subtitle generation failed:", err);
+
+      try {
+        const translateResponse = await fetch(`${import.meta.env.BASE_URL}api/scraper/translate`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title: article.title,
+            excerpt: article.excerpt,
+            content: article.content,
+            sourceName: article.sourceName,
+            sourceLanguage: article.sourceLanguage || "es",
+          }),
+        });
+        if (translateResponse.ok) {
+          const translated = await translateResponse.json();
+          title = translated.title || title;
+          excerpt = translated.excerpt || excerpt;
+          content = translated.content || content;
+          subtitle = translated.subtitle || subtitle;
         }
+      } catch (err) {
+        console.error("Translation failed, importing in original language:", err);
       }
+
+      toast({ title: "Importando...", description: `Salvando matéria de ${article.sourceName}...` });
 
       await createMutation.mutateAsync({
         data: {
-          title: article.title,
-          slug: generateSlug(article.title),
+          title,
+          slug: generateSlug(title),
           subtitle,
-          excerpt: article.excerpt,
-          content: article.content,
+          excerpt,
+          content,
           coverImage: article.coverImage,
           category: "Internacional",
           authorName: article.sourceName,
