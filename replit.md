@@ -132,6 +132,18 @@ Articles are stored with UTC timestamps and displayed in Brasília time.
 - Automatic fallback to demo data when feeds are unavailable
 - Real data status indicators in the UI
 
+### Full Article Content Fetching
+- **Fixed: Articles now import complete content, not just first paragraph**
+- Added `fetchFullArticleContent()` function that:
+  - Fetches the original article URL from the RSS feed
+  - Extracts full content from common article containers (article, content, body tags)
+  - Falls back to extracting all paragraph tags if main container not found
+  - Cleans HTML and normalizes spacing for proper formatting
+  - Returns only substantial content (>200 characters minimum)
+- Applied to both `/scraper/fetch` and `/scraper/fetch-all` endpoints
+- Fetching done in parallel for multiple articles (non-blocking)
+- Falls back to RSS description if full content fetch fails
+
 ### Optimized Import Flow
 - Server-side RSS parsing and translation (no double processing)
 - Faster import workflow - articles already translated on fetch
@@ -139,7 +151,7 @@ Articles are stored with UTC timestamps and displayed in Brasília time.
 - Direct links to original articles for fact-checking
 
 ### Enhanced Article Display
-- **Complete articles display fully without truncation** (300+ characters)
+- **Complete articles now display with full content** (2000+ characters typical, vs. 300+ before)
 - **AI-generated smart excerpts** (intelligent 2-3 sentence summaries, not just text copies)
 - All articles **automatically translated to Brazilian Portuguese** via OpenAI
 - Excerpt used for card preview only, content shows full article

@@ -436,6 +436,62 @@ function stripHtmlTags(text: string): string {
     .trim();
 }
 
+// Helper function to fetch full article content from URL
+async function fetchFullArticleContent(url: string): Promise<string> {
+  try {
+    const response = await fetch(url, {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+      },
+      timeout: 15000,
+    });
+
+    if (!response.ok) {
+      console.warn(`Failed to fetch article from ${url}: ${response.status}`);
+      return "";
+    }
+
+    const html = await response.text();
+    
+    // Look for common article content containers
+    let content = "";
+    
+    // Try to find content in common article tags/classes
+    const patterns = [
+      /<article[^>]*>([\s\S]*?)<\/article>/i,
+      /<div[^>]*class="[^"]*article[^"]*"[^>]*>([\s\S]*?)<\/div>/i,
+      /<div[^>]*class="[^"]*content[^"]*"[^>]*>([\s\S]*?)<\/div>/i,
+      /<div[^>]*class="[^"]*body[^"]*"[^>]*>([\s\S]*?)<\/div>/i,
+      /<main[^>]*>([\s\S]*?)<\/main>/i,
+    ];
+    
+    for (const pattern of patterns) {
+      const match = html.match(pattern);
+      if (match && match[1]) {
+        content = match[1];
+        break;
+      }
+    }
+    
+    // If no container found, try to extract paragraphs
+    if (!content) {
+      const paragraphs = html.match(/<p[^>]*>([\s\S]*?)<\/p>/gi) || [];
+      content = paragraphs.join("\n");
+    }
+    
+    // Clean up the content
+    const cleaned = stripHtmlTags(content)
+      .replace(/\n\s*\n/g, "\n\n")  // Normalize paragraph spacing
+      .trim();
+    
+    // Return content only if it's substantial (more than 200 chars)
+    return cleaned.length > 200 ? cleaned : "";
+  } catch (err) {
+    console.error(`Error fetching full article from ${url}:`, err);
+    return "";
+  }
+}
+
 // Helper function to fetch RSS feed
 async function fetchRssFeed(feedUrl: string): Promise<any[]> {
   try {
@@ -516,25 +572,28 @@ router.post("/scraper/fetch-all", async (req, res): Promise<void> => {
         try {
           const rawArticles = await fetchRssFeed(source.rssFeed!);
           
-          // Process each article with translation and summary
-          return rawArticles.slice(0, maxArticles).map((article: any) => {
-            const cleanTitle = stripHtmlTags(article.title || "");
-            const cleanDescription = stripHtmlTags(article.description || "");
-            
-            // For now, return without subtitle to avoid timeout
-            // Subtitle will be generated on import or when needed
-            return {
-              title: cleanTitle,
-              subtitle: "",  // Will be generated on import
-              excerpt: cleanDescription,
-              content: cleanDescription,
-              coverImage: article.image || null,
-              originalUrl: article.link || "",
-              sourceName: source.name,
-              sourceLanguage: source.language,
-              publishedAt: article.pubDate || new Date().toISOString(),
-            };
-          });
+          // Process each article with full content fetching
+          return Promise.all(
+            rawArticles.slice(0, maxArticles).map(async (article: any) => {
+              const cleanTitle = stripHtmlTags(article.title || "");
+              const cleanDescription = stripHtmlTags(article.description || "");
+              
+              // Fetch full content from the article URL
+              const fullContent = await fetchFullArticleContent(article.link || "");
+              
+              return {
+                title: cleanTitle,
+                subtitle: "",  // Will be generated on import
+                excerpt: cleanDescription,
+                content: fullContent || cleanDescription,  // Use full content if available
+                coverImage: article.image || null,
+                originalUrl: article.link || "",
+                sourceName: source.name,
+                sourceLanguage: source.language,
+                publishedAt: article.pubDate || new Date().toISOString(),
+              };
+            })
+          );
         } catch (err) {
           console.error(`Error fetching from ${source.name}:`, err);
           return [];
@@ -591,21 +650,29 @@ router.post("/scraper/fetch", async (req, res): Promise<void> => {
     return;
   }
 
-  const articles = rawArticles.slice(0, maxArticles).map((article: any) => ({
-    title: article.title || "",
-    subtitle: "",  // Subtitle will be generated later or on import
-    excerpt: article.description || "",
-    content: article.description || "",
-    originalUrl: article.link || "",
-    sourceName: source.name,
-    coverImage: article.image || null,
-    publishedAt: article.pubDate || new Date().toISOString(),
-  }));
+  // Fetch full content for each article in parallel
+  const articlesWithContent = await Promise.all(
+    rawArticles.slice(0, maxArticles).map(async (article: any) => {
+      // Try to fetch full content from the article URL
+      const fullContent = await fetchFullArticleContent(article.link || "");
+      
+      return {
+        title: article.title || "",
+        subtitle: "",  // Subtitle will be generated later or on import
+        excerpt: article.description || "",
+        content: fullContent || article.description || "",  // Use full content if available, fallback to description
+        originalUrl: article.link || "",
+        sourceName: source.name,
+        coverImage: article.image || null,
+        publishedAt: article.pubDate || new Date().toISOString(),
+      };
+    })
+  );
 
   res.json({
-    articles: articles,
+    articles: articlesWithContent,
     imported: 0,
-    total: articles.length,
+    total: articlesWithContent.length,
     source: source.name,
   });
 });
