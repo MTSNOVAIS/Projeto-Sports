@@ -568,6 +568,74 @@ router.get("/scraper/sources", async (_req, res): Promise<void> => {
   res.json(NEWS_SOURCES);
 });
 
+// Search news via Google News RSS and translate results
+router.post("/scraper/search", async (req, res): Promise<void> => {
+  const { query, maxResults = 5 } = req.body;
+
+  if (!query || typeof query !== "string" || !query.trim()) {
+    res.status(400).json({ error: "query is required" });
+    return;
+  }
+
+  try {
+    const encoded = encodeURIComponent(query.trim() + " futebol");
+    const feedUrl = `https://news.google.com/rss/search?q=${encoded}&hl=pt-BR&gl=BR&ceid=BR:pt`;
+
+    const rawArticles = await fetchRssFeed(feedUrl);
+
+    if (rawArticles.length === 0) {
+      res.json({ articles: [], total: 0, query });
+      return;
+    }
+
+    const articles = await Promise.all(
+      rawArticles.slice(0, maxResults).map(async (article: any) => {
+        const cleanTitle = stripHtmlTags(article.title || "");
+        const cleanDescription = stripHtmlTags(article.description || "");
+
+        const fullContent = await fetchFullArticleContent(article.link || "");
+        const rawContent = fullContent || cleanDescription;
+
+        if (!rawContent || rawContent.length < 100) {
+          return null;
+        }
+
+        // Detect language from URL heuristic
+        const isSpanish = /marca|as\.com|sport\.es|mundodeportivo|diarioas|abc\.es|elmundo|lavanguardia/i.test(article.link || "");
+        const sourceLanguage = isSpanish ? "es" : "en";
+
+        // Extract source name from URL
+        let sourceName = "Google News";
+        try {
+          const hostname = new URL(article.link || "").hostname.replace("www.", "");
+          sourceName = hostname.split(".")[0].charAt(0).toUpperCase() + hostname.split(".")[0].slice(1);
+        } catch {}
+
+        const translated = await translateArticle(cleanTitle, rawContent, sourceName, sourceLanguage);
+
+        return {
+          title: translated.title,
+          subtitle: translated.subtitle,
+          excerpt: translated.excerpt,
+          content: translated.content,
+          coverImage: null,
+          originalUrl: article.link || "",
+          sourceName,
+          sourceLanguage,
+          publishedAt: article.pubDate || new Date().toISOString(),
+        };
+      })
+    );
+
+    const validArticles = articles.filter(Boolean);
+
+    res.json({ articles: validArticles, total: validArticles.length, query });
+  } catch (err) {
+    console.error("Search error:", err);
+    res.status(500).json({ error: "Failed to search articles" });
+  }
+});
+
 // Fetch articles from all sources, translate to PT-BR, and return as a unified timeline
 router.post("/scraper/fetch-all", async (req, res): Promise<void> => {
   // Cap at 3 per source to keep parallel translation fast
