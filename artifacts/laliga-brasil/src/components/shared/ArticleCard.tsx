@@ -44,9 +44,6 @@ export function ArticleCard({ article, featured = false }: { article: Article, f
               {article.subtitle}
             </p>
           )}
-          <p className="text-gray-300 line-clamp-2 md:text-lg mb-4 max-w-3xl">
-            {article.excerpt}
-          </p>
           <div className="flex items-center gap-4 text-sm text-gray-400 font-medium">
             {dateStr && <span className="flex items-center gap-1"><Clock className="w-4 h-4" /> {dateStr}</span>}
             <span className="flex items-center gap-1"><Eye className="w-4 h-4" /> {article.viewCount} views</span>
@@ -78,9 +75,6 @@ export function ArticleCard({ article, featured = false }: { article: Article, f
             {article.subtitle}
           </p>
         )}
-        <p className="text-muted-foreground text-sm line-clamp-2 mb-4 flex-grow">
-          {article.excerpt}
-        </p>
         <div className="flex items-center justify-between text-xs font-medium text-muted-foreground mt-auto pt-4 border-t border-border/40">
           <span>{dateStr}</span>
           <span className="text-primary group-hover:translate-x-1 transition-transform flex items-center gap-1">

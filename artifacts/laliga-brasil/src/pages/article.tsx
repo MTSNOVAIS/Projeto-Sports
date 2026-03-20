@@ -74,9 +74,6 @@ export default function ArticleView() {
               </p>
             )}
             
-            <p className="text-xl text-gray-400 font-medium leading-relaxed mb-8 border-l-4 border-primary pl-4">
-              {article.excerpt}
-            </p>
             
             <div className="flex flex-wrap items-center justify-between gap-4 text-sm text-muted-foreground font-medium py-4 border-t border-border">
               <div className="flex flex-wrap items-center gap-6">
