@@ -467,6 +467,69 @@ function stripHtmlTags(text: string): string {
   return result;
 }
 
+// Helper function to remove unnecessary sections from article content
+function cleanArticleContent(html: string): string {
+  let cleaned = html;
+  
+  // Remove common unnecessary sections and patterns
+  const unnecessary = [
+    // Video sections
+    /<[^>]*class="[^"]*video[^"]*"[^>]*>[\s\S]*?<\/[^>]*>/gi,
+    /<[^>]*id="[^"]*video[^"]*"[^>]*>[\s\S]*?<\/[^>]*>/gi,
+    
+    // Related articles sections
+    /<[^>]*class="[^"]*related[^"]*"[^>]*>[\s\S]*?<\/[^>]*>/gi,
+    /<[^>]*class="[^"]*similar[^"]*"[^>]*>[\s\S]*?<\/[^>]*>/gi,
+    
+    // Comments sections
+    /<[^>]*class="[^"]*comment[^"]*"[^>]*>[\s\S]*?<\/[^>]*>/gi,
+    /<[^>]*id="[^"]*comment[^"]*"[^>]*>[\s\S]*?<\/[^>]*>/gi,
+    
+    // Social/sharing sections
+    /<[^>]*class="[^"]*social[^"]*"[^>]*>[\s\S]*?<\/[^>]*>/gi,
+    /<[^>]*class="[^"]*share[^"]*"[^>]*>[\s\S]*?<\/[^>]*>/gi,
+    
+    // Ads and promotional content
+    /<[^>]*class="[^"]*ad[^"]*"[^>]*>[\s\S]*?<\/[^>]*>/gi,
+    /<[^>]*class="[^"]*advertisement[^"]*"[^>]*>[\s\S]*?<\/[^>]*>/gi,
+    /<[^>]*id="[^"]*ad[^"]*"[^>]*>[\s\S]*?<\/[^>]*>/gi,
+    
+    // Sidebar and footer sections
+    /<[^>]*class="[^"]*sidebar[^"]*"[^>]*>[\s\S]*?<\/[^>]*>/gi,
+    /<[^>]*class="[^"]*footer[^"]*"[^>]*>[\s\S]*?<\/[^>]*>/gi,
+    /<[^>]*id="[^"]*footer[^"]*"[^>]*>[\s\S]*?<\/[^>]*>/gi,
+    
+    // Navigation
+    /<[^>]*class="[^"]*nav[^"]*"[^>]*>[\s\S]*?<\/[^>]*>/gi,
+  ];
+  
+  for (const pattern of unnecessary) {
+    cleaned = cleaned.replace(pattern, " ");
+  }
+  
+  return cleaned;
+}
+
+// Helper function to extract and filter paragraphs
+function extractMainContent(html: string): string {
+  // Extract all paragraphs
+  const paragraphs = html.match(/<p[^>]*>([\s\S]*?)<\/p>/gi) || [];
+  
+  if (paragraphs.length === 0) return html;
+  
+  // Filter out very short paragraphs (likely not main content)
+  const longParagraphs = paragraphs.filter(p => {
+    const textOnly = p.replace(/<[^>]*>/g, "").trim();
+    return textOnly.length > 60;  // Keep paragraphs with more than 60 chars
+  });
+  
+  // If we have long paragraphs, use those; otherwise use all paragraphs
+  const useParagraphs = longParagraphs.length > 0 ? longParagraphs : paragraphs;
+  
+  // Join paragraphs with spacing
+  return useParagraphs.join("\n\n");
+}
+
 // Helper function to fetch full article content from URL
 async function fetchFullArticleContent(url: string): Promise<string> {
   try {
@@ -484,6 +547,9 @@ async function fetchFullArticleContent(url: string): Promise<string> {
 
     const html = await response.text();
     
+    // First, remove unnecessary sections
+    let cleaned = cleanArticleContent(html);
+    
     // Look for common article content containers
     let content = "";
     
@@ -497,37 +563,45 @@ async function fetchFullArticleContent(url: string): Promise<string> {
     ];
     
     for (const pattern of patterns) {
-      const match = html.match(pattern);
+      const match = cleaned.match(pattern);
       if (match && match[1]) {
         content = match[1];
         break;
       }
     }
     
-    // If no container found, try to extract paragraphs
+    // If no container found, try to extract main paragraphs
     if (!content) {
-      const paragraphs = html.match(/<p[^>]*>([\s\S]*?)<\/p>/gi) || [];
-      content = paragraphs.join("\n\n");
+      content = extractMainContent(cleaned);
     }
     
-    // Clean up the content - preserve paragraph structure
-    let cleaned = stripHtmlTags(content);
+    // Extract paragraphs before cleaning HTML to preserve structure
+    const rawParagraphs = content.match(/<p[^>]*>([\s\S]*?)<\/p>/gi) || [];
     
-    // Restore paragraph breaks (split by newline patterns if present)
-    if (cleaned.includes("\n")) {
-      cleaned = cleaned
-        .split(/\n+/)
-        .filter(line => line.trim().length > 0)
-        .join("\n\n");
-    } else {
-      // If no newlines, try to split by common sentence endings
-      cleaned = cleaned
-        .replace(/([.!?])\s+([A-Z])/g, "$1\n$2")  // New paragraph on new sentence
-        .replace(/\n+/g, "\n\n");  // Normalize spacing
-    }
+    // Clean each paragraph individually to preserve structure
+    const cleanedParagraphs = rawParagraphs
+      .map(p => stripHtmlTags(p).trim())
+      .filter(p => p.length > 40)  // Keep paragraphs with substantive content (>40 chars)
+      .map(p => {
+        // Further split very long paragraphs by sentence if needed
+        if (p.length > 500) {
+          return p
+            .replace(/([.!?])\s+(?=[A-Z])/g, "$1\n")  // Split by sentences
+            .split('\n')
+            .map(s => s.trim())
+            .filter(s => s.length > 0)
+            .join("\n");
+        }
+        return p;
+      });
     
-    // Return content only if it's substantial (more than 200 chars)
-    return cleaned.trim().length > 200 ? cleaned.trim() : "";
+    // If no good paragraphs found, try to extract and clean all content
+    let finalContent = cleanedParagraphs.length > 0 
+      ? cleanedParagraphs.join("\n\n")
+      : stripHtmlTags(content).trim();
+    
+    // Return content only if it's substantial (more than 300 chars for better quality)
+    return finalContent.length > 300 ? finalContent : "";
   } catch (err) {
     console.error(`Error fetching full article from ${url}:`, err);
     return "";
