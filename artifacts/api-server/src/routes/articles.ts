@@ -285,7 +285,7 @@ router.get("/admin/articles/:id", async (req, res): Promise<void> => {
 });
 
 router.post("/admin/articles", async (req, res): Promise<void> => {
-  const { title, excerpt, content, coverImage, status, featured, breakingNews, category, authorName, teamId, sourceUrl, sourceName, scheduledAt } = req.body;
+  const { title, subtitle, excerpt, content, coverImage, status, featured, breakingNews, category, authorName, teamId, sourceUrl, sourceName, scheduledAt } = req.body;
 
   if (!title || !excerpt || !content) {
     res.status(400).json({ error: "title, excerpt and content are required" });
@@ -294,6 +294,7 @@ router.post("/admin/articles", async (req, res): Promise<void> => {
 
   // Strip HTML tags from all text fields
   const cleanTitle = stripHtmlTags(title);
+  const cleanSubtitle = subtitle ? stripHtmlTags(subtitle) : null;
   const cleanExcerpt = stripHtmlTags(excerpt);
   const cleanContent = stripHtmlTags(content);
   const slug = generateSlug(cleanTitle);
@@ -303,6 +304,7 @@ router.post("/admin/articles", async (req, res): Promise<void> => {
   const [article] = await db.insert(articlesTable).values({
     title: cleanTitle,
     slug,
+    subtitle: cleanSubtitle,
     excerpt: cleanExcerpt,
     content: cleanContent,
     coverImage: coverImage || null,
@@ -333,7 +335,7 @@ router.put("/admin/articles/:id", async (req, res): Promise<void> => {
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const id = parseInt(raw, 10);
 
-  const { title, excerpt, content, coverImage, status, featured, breakingNews, category, authorName, teamId, sourceUrl, sourceName, scheduledAt } = req.body;
+  const { title, subtitle, excerpt, content, coverImage, status, featured, breakingNews, category, authorName, teamId, sourceUrl, sourceName, scheduledAt } = req.body;
 
   const existing = await db.select().from(articlesTable).where(eq(articlesTable.id, id));
   if (!existing.length) {
@@ -344,6 +346,7 @@ router.put("/admin/articles/:id", async (req, res): Promise<void> => {
   // Strip HTML tags from all text fields
   const updateData: Partial<typeof articlesTable.$inferInsert> = {
     title: title ? stripHtmlTags(title) : undefined,
+    subtitle: subtitle ? stripHtmlTags(subtitle) : undefined,
     excerpt: excerpt ? stripHtmlTags(excerpt) : undefined,
     content: content ? stripHtmlTags(content) : undefined,
     coverImage: coverImage || null,
