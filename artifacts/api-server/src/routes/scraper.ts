@@ -418,6 +418,27 @@ function decodeHtmlEntities(text: string): string {
     .replace(/&amp;/g, "&");  // Must be last to avoid double-decoding
 }
 
+// Helper function to check if a paragraph is meta-information
+function isMetaParagraph(text: string): boolean {
+  const cleaned = text.toLowerCase().trim();
+  
+  // Patterns that indicate meta-information, not actual article content
+  const metaPatterns = [
+    /^[a-z\s\-\.\/]*$/,  // All lowercase (likely author/source info)
+    /por\s+[a-z\s]+/i,   // "por" (author info)
+    /foto\s*:\s*/i,      // Photo credit
+    /\s*\/\s*propias/i,  // " / Propias" (image source)
+    /periodista|redactor|colaborador|escrito|reportaje/i, // Author descriptions
+    /actualizado\s+el|updated|last\s+modified/i,          // Update timestamps
+    /\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4}/,                     // Dates
+    /\d{1,2}:\d{2}\s*(cet|gmt|utc|h|am|pm)/i,            // Times
+    /ultima\s+actualizacion|updated|share|compartir|tags|comments|comentarios/i, // Update notes
+    /mundo deportivo|getty|reuters|afp|el país|as\.com/i, // Source attributions mixed in
+  ];
+  
+  return metaPatterns.some(pattern => pattern.test(cleaned));
+}
+
 // Helper function to strip HTML tags from text
 function stripHtmlTags(text: string): string {
   let result = text;
@@ -570,37 +591,53 @@ async function fetchFullArticleContent(url: string): Promise<string> {
       }
     }
     
-    // If no container found, try to extract main paragraphs
+    // If no container found, use entire cleaned content
     if (!content) {
-      content = extractMainContent(cleaned);
+      content = cleaned;
     }
     
-    // Extract paragraphs before cleaning HTML to preserve structure
+    // Extract ALL paragraphs before any HTML stripping
     const rawParagraphs = content.match(/<p[^>]*>([\s\S]*?)<\/p>/gi) || [];
     
-    // Clean each paragraph individually to preserve structure
-    const cleanedParagraphs = rawParagraphs
-      .map(p => stripHtmlTags(p).trim())
-      .filter(p => p.length > 40)  // Keep paragraphs with substantive content (>40 chars)
-      .map(p => {
-        // Further split very long paragraphs by sentence if needed
-        if (p.length > 500) {
-          return p
-            .replace(/([.!?])\s+(?=[A-Z])/g, "$1\n")  // Split by sentences
-            .split('\n')
-            .map(s => s.trim())
-            .filter(s => s.length > 0)
-            .join("\n");
+    // Process each paragraph: clean HTML and filter
+    const cleanedParagraphs: string[] = [];
+    
+    for (const rawPara of rawParagraphs) {
+      // Strip HTML from this paragraph
+      let paraText = stripHtmlTags(rawPara).trim();
+      
+      // Skip empty paragraphs
+      if (paraText.length < 40) continue;
+      
+      // Skip meta-information paragraphs
+      if (isMetaParagraph(paraText)) continue;
+      
+      // Remove source attributions and promotional headers that interrupt content
+      // Match patterns like " MUNDO DEPORTIVO Palabra...: " or " REUTERS Title...: "
+      paraText = paraText
+        .replace(/\s+(MUNDO\s+DEPORTIVO|GETTY\s+IMAGES?|GETTY|AFP|REUTERS|EL\s+PAÍS|AS\.COM|MARCA|BBC|ESPN|SPORT\.ES|PERIODISTA|REDACTOR)\s+([A-Z][a-z]+[\w\s]*:\s*)?/gi, " ")
+        .trim();
+      
+      // Skip paragraphs that look like section headers
+      const isProbablyHeader = /^[A-Z\s]{3,}$/.test(paraText) && paraText.length < 60;
+      if (isProbablyHeader) continue;
+      
+      // Split very long paragraphs by sentence for readability
+      if (paraText.length > 500) {
+        const sentences = paraText
+          .split(/(?<=[.!?])\s+(?=[A-Z])/);
+        if (sentences.length > 1) {
+          paraText = sentences.join("\n");
         }
-        return p;
-      });
+      }
+      
+      cleanedParagraphs.push(paraText);
+    }
     
-    // If no good paragraphs found, try to extract and clean all content
-    let finalContent = cleanedParagraphs.length > 0 
-      ? cleanedParagraphs.join("\n\n")
-      : stripHtmlTags(content).trim();
+    // Join paragraphs with double newlines
+    const finalContent = cleanedParagraphs.join("\n\n");
     
-    // Return content only if it's substantial (more than 300 chars for better quality)
+    // Return content only if substantial (more than 300 chars)
     return finalContent.length > 300 ? finalContent : "";
   } catch (err) {
     console.error(`Error fetching full article from ${url}:`, err);
