@@ -568,30 +568,41 @@ async function fetchRssFeed(feedUrl: string): Promise<any[]> {
       const linkMatch = /<link>([\s\S]*?)<\/link>/.exec(itemContent);
       const pubDateMatch = /<pubDate>([\s\S]*?)<\/pubDate>/.exec(itemContent);
       const imageMatch = /<image.*?url>([\s\S]*?)<\/url>/.exec(itemContent);
+
       // Google News RSS provides the actual source site via <source url="...">Name</source>
       const sourceTagMatch = /<source\s+url=["']([^"']+)["'][^>]*>([\s\S]*?)<\/source>/i.exec(itemContent);
       const sourceUrl = sourceTagMatch ? sourceTagMatch[1].trim() : "";
       const sourceNameFromTag = sourceTagMatch ? stripHtmlTags(sourceTagMatch[2]).trim() : "";
 
-      if (titleMatch && linkMatch) {
-        // Clean title and description - remove HTML tags and decode entities
-        const cleanTitle = decodeHtmlEntities(titleMatch[1].replace(/<[^>]*>/g, "").trim());
-        // Get full description without cutting it
-        const rawDesc = descMatch ? descMatch[1] : "";
+      // Google News RSS description contains the real article URL in the first <a href="..."> link
+      const rawDesc = descMatch ? descMatch[1] : "";
+      const firstHrefMatch = /href=["']([^"']+)["']/.exec(rawDesc);
+      const articleUrlFromDesc = firstHrefMatch ? firstHrefMatch[1] : "";
+
+      // Google News appends " - SourceName" to titles. Strip it.
+      let rawTitle = titleMatch ? titleMatch[1].replace(/<[^>]*>/g, "").trim() : "";
+      // Remove trailing " - Source" pattern (e.g. "Real Madrid vence - Marca")
+      rawTitle = rawTitle.replace(/\s*-\s*[^-]{2,40}$/, "").trim();
+
+      if (rawTitle && linkMatch) {
+        const cleanTitle = decodeHtmlEntities(rawTitle);
         const cleanDesc = stripHtmlTags(rawDesc).trim();
-        
-        // Only add if we have meaningful content
-        if (cleanTitle) {
-          articles.push({
-            title: cleanTitle,
-            description: cleanDesc,
-            link: linkMatch[1].trim(),
-            pubDate: pubDateMatch ? new Date(pubDateMatch[1]).toISOString() : new Date().toISOString(),
-            image: imageMatch ? imageMatch[1] : null,
-            sourceUrl,
-            sourceName: sourceNameFromTag,
-          });
-        }
+
+        // Prefer real article URL from description; fall back to Google News redirect link
+        const articleUrl = articleUrlFromDesc && articleUrlFromDesc.startsWith("http") && !articleUrlFromDesc.includes("news.google.com")
+          ? articleUrlFromDesc
+          : linkMatch[1].trim();
+
+        articles.push({
+          title: cleanTitle,
+          description: cleanDesc,
+          link: linkMatch[1].trim(),   // original Google News redirect (for reference)
+          articleUrl,                   // real article URL to fetch content from
+          pubDate: pubDateMatch ? new Date(pubDateMatch[1]).toISOString() : new Date().toISOString(),
+          image: imageMatch ? imageMatch[1] : null,
+          sourceUrl,
+          sourceName: sourceNameFromTag,
+        });
       }
     }
 
@@ -628,37 +639,50 @@ router.post("/scraper/search", async (req, res): Promise<void> => {
 
     const articles = await Promise.all(
       rawArticles.slice(0, maxResults).map(async (article: any) => {
-        const cleanTitle = stripHtmlTags(article.title || "");
-        const cleanDescription = stripHtmlTags(article.description || "");
+        const cleanDescription = article.description || "";
 
-        // Fetch full content, OG image, and final URL (follows Google News redirects)
-        const articleData = await fetchArticleData(article.link || "");
+        // Use the real article URL (extracted from description <a href>) not Google News redirect
+        const fetchUrl = article.articleUrl || article.link || "";
+
+        // Fetch full content and OG image from the real article page
+        const articleData = await fetchArticleData(fetchUrl);
         const rawContent = articleData.content || cleanDescription;
 
         if (!rawContent || rawContent.length < 100) {
           return null;
         }
 
-        // Use actual redirected URL (not Google News redirect) for source name
-        const actualUrl = articleData.finalUrl || article.sourceUrl || article.link || "";
-
-        // Prefer source name from RSS <source> tag, fall back to extracting from final URL
+        // Source name: always use the one from RSS <source> tag (it's the actual publication)
+        // Fall back to extracting from the actual article URL
         let sourceName = article.sourceName || "";
-        if (!sourceName) {
+        if (!sourceName && fetchUrl) {
           try {
-            const hostname = new URL(actualUrl).hostname.replace("www.", "");
+            const hostname = new URL(fetchUrl).hostname.replace("www.", "");
             const domainPart = hostname.split(".")[0];
             sourceName = domainPart.charAt(0).toUpperCase() + domainPart.slice(1);
           } catch {
-            sourceName = "Google News";
+            sourceName = "Desconhecido";
           }
         }
 
-        // Detect language from actual URL
-        const isSpanish = /marca|as\.com|sport\.es|mundodeportivo|abc\.es|elmundo|lavanguardia|espn\.es/i.test(actualUrl);
-        const sourceLanguage = isSpanish ? "es" : "en";
+        // Detect language from the real article URL
+        const isSpanish = /marca|as\.com|sport\.es|mundodeportivo|abc\.es|elmundo|lavanguardia|espn\.es|diario/i.test(fetchUrl);
+        const isPortuguese = /record\.pt|zerozero|maisfutebol|ojogo|abola|globoesporte|uol\.com|ge\.globo/i.test(fetchUrl);
+        const sourceLanguage = isPortuguese ? "pt" : isSpanish ? "es" : "en";
 
-        const translated = await translateArticle(cleanTitle, rawContent, sourceName, sourceLanguage);
+        // Don't re-translate Portuguese articles, just generate subtitle
+        let translated;
+        if (sourceLanguage === "pt") {
+          const subtitle = await generateSubtitle(article.title, rawContent);
+          translated = {
+            title: article.title,
+            content: rawContent,
+            excerpt: generateExcerpt(rawContent),
+            subtitle,
+          };
+        } else {
+          translated = await translateArticle(article.title, rawContent, sourceName, sourceLanguage);
+        }
 
         return {
           title: translated.title,
@@ -666,7 +690,7 @@ router.post("/scraper/search", async (req, res): Promise<void> => {
           excerpt: translated.excerpt,
           content: translated.content,
           coverImage: articleData.image || null,
-          originalUrl: actualUrl || article.link || "",
+          originalUrl: fetchUrl,
           sourceName,
           sourceLanguage,
           publishedAt: article.pubDate || new Date().toISOString(),
