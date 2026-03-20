@@ -11,6 +11,7 @@ export interface Article {
   id: number;
   title: string;
   slug: string;
+  subtitle?: string | null;
   excerpt: string;
   content: string;
   coverImage?: string | null;

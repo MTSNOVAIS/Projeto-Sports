@@ -48,11 +48,33 @@ export default function AdminImport() {
 
       toast({ title: "Importando...", description: `Salvando matéria de ${article.sourceName}...` });
 
+      // Generate subtitle if not available
+      let subtitle = article.subtitle || "";
+      if (!subtitle && article.title && article.content) {
+        try {
+          const subtitleResponse = await fetch(`${import.meta.env.BASE_URL}api/scraper/generate-subtitle`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              title: article.title,
+              content: article.content,
+            }),
+          });
+          if (subtitleResponse.ok) {
+            const subtitleData = await subtitleResponse.json();
+            subtitle = subtitleData.subtitle || "";
+          }
+        } catch (err) {
+          // Subtitle generation failed, continue without it
+          console.error("Subtitle generation failed:", err);
+        }
+      }
+
       await createMutation.mutateAsync({
         data: {
           title: article.title,
           slug: generateSlug(article.title),
-          subtitle: article.subtitle || "",
+          subtitle,
           excerpt: article.excerpt,
           content: article.content,
           coverImage: article.coverImage,

@@ -464,6 +464,9 @@ components:
           type: string
         slug:
           type: string
+        subtitle:
+          type: string
+          nullable: true
         excerpt:
           type: string
         content:
@@ -621,6 +624,9 @@ components:
       properties:
         title:
           type: string
+        subtitle:
+          type: string
+          nullable: true
         excerpt:
           type: string
         content:

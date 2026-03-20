@@ -9,6 +9,7 @@ import type { CreateArticleRequestStatus } from "./createArticleRequestStatus";
 
 export interface CreateArticleRequest {
   title: string;
+  subtitle?: string | null;
   excerpt: string;
   content: string;
   coverImage?: string | null;

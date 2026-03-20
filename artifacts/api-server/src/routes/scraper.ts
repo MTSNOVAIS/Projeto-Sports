@@ -517,32 +517,24 @@ router.post("/scraper/fetch-all", async (req, res): Promise<void> => {
           const rawArticles = await fetchRssFeed(source.rssFeed!);
           
           // Process each article with translation and summary
-          return await Promise.all(
-            rawArticles.slice(0, maxArticles).map(async (article: any) => {
-              const cleanTitle = stripHtmlTags(article.title || "");
-              const cleanDescription = stripHtmlTags(article.description || "");
-              
-              // Translate and generate AI summary and subtitle
-              const { title, content, excerpt, subtitle } = await translateArticle(
-                cleanTitle,
-                cleanDescription,
-                source.name,
-                source.language
-              );
-              
-              return {
-                title,
-                subtitle,  // AI-generated subtitle
-                excerpt,  // AI-generated summary (not a copy)
-                content,  // Complete translated content
-                coverImage: article.image || null,
-                originalUrl: article.link || "",
-                sourceName: source.name,
-                sourceLanguage: source.language,
-                publishedAt: article.pubDate || new Date().toISOString(),
-              };
-            })
-          );
+          return rawArticles.slice(0, maxArticles).map((article: any) => {
+            const cleanTitle = stripHtmlTags(article.title || "");
+            const cleanDescription = stripHtmlTags(article.description || "");
+            
+            // For now, return without subtitle to avoid timeout
+            // Subtitle will be generated on import or when needed
+            return {
+              title: cleanTitle,
+              subtitle: "",  // Will be generated on import
+              excerpt: cleanDescription,
+              content: cleanDescription,
+              coverImage: article.image || null,
+              originalUrl: article.link || "",
+              sourceName: source.name,
+              sourceLanguage: source.language,
+              publishedAt: article.pubDate || new Date().toISOString(),
+            };
+          });
         } catch (err) {
           console.error(`Error fetching from ${source.name}:`, err);
           return [];
@@ -599,21 +591,15 @@ router.post("/scraper/fetch", async (req, res): Promise<void> => {
     return;
   }
 
-  const articles = await Promise.all(rawArticles.slice(0, maxArticles).map(async (article: any) => {
-    const title = article.title || "";
-    const content = article.description || "";
-    const subtitle = await generateSubtitle(title, content);
-    
-    return {
-      title,
-      subtitle,
-      excerpt: article.description || "",
-      content,
-      originalUrl: article.link || "",
-      sourceName: source.name,
-      coverImage: article.image || null,
-      publishedAt: article.pubDate || new Date().toISOString(),
-    };
+  const articles = rawArticles.slice(0, maxArticles).map((article: any) => ({
+    title: article.title || "",
+    subtitle: "",  // Subtitle will be generated later or on import
+    excerpt: article.description || "",
+    content: article.description || "",
+    originalUrl: article.link || "",
+    sourceName: source.name,
+    coverImage: article.image || null,
+    publishedAt: article.pubDate || new Date().toISOString(),
   }));
 
   res.json({
