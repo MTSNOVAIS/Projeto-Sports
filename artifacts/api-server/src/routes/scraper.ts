@@ -1,5 +1,6 @@
 import { Router, type IRouter } from "express";
-import { db, articlesTable } from "@workspace/db";
+import { db, articlesTable, newsSourcesTable, importTopicsTable } from "@workspace/db";
+import { asc, eq } from "drizzle-orm";
 import OpenAI from "openai";
 
 const router: IRouter = Router();
@@ -281,20 +282,15 @@ function isMetaParagraph(text: string): boolean {
   
   // Patterns that indicate meta-information, not actual article content
   const metaPatterns = [
-    /^[a-z\s\-\.\/]*$/,  // All lowercase (likely author/source info)
-    /por\s+[a-z\s]+/i,   // "por" (author info)
-    /foto\s*:\s*/i,      // Photo credit
-    /\s*\/\s*propias/i,  // " / Propias" (image source)
-    /periodista|redactor|colaborador|escrito|reportaje/i, // Author descriptions
-    /actualizado\s+el|updated|last\s+modified/i,          // Update timestamps
-    /\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4}/,                     // Dates
-    /\d{1,2}:\d{2}\s*(cet|gmt|utc|h|am|pm)/i,            // Times
-    /ultima\s+actualizacion|updated|share|compartir|tags|comments|comentarios/i, // Update notes
-    /mundo deportivo|getty|reuters|afp|el país|as\.com/i, // Source attributions mixed in
-    // Google UI elements that can leak in when redirect resolution partially fails
-    /google\s+news|google\s+search|pesquisar\s+no\s+google|search\s+google/i,
-    /^pesquisar$|^search$|^fazer\s+login$|^sign\s+in$|^entrar$/i,
-    /^(notícias|noticias|news|sports|esportes|all|tudo|para\s+você|for\s+you)$/i,
+    /foto\s*:\s*/i,              // Photo credit
+    /\s*\/\s*propias/i,          // " / Propias" (image source)
+    /periodista\s|redactor\s|colaborador\s/i, // Author descriptions (narrower)
+    /última\s+actualización|last\s+modified/i, // Update timestamps
+    /\d{1,2}:\d{2}\s*(cet|gmt|utc)\b/i,       // Timezone times (narrow)
+    /^compartir$|^share$|^tags$/i,              // Navigation labels only
+    // Google UI elements
+    /google\s+news|google\s+search|pesquisar\s+no\s+google/i,
+    /^pesquisar$|^search$|^fazer\s+login$|^sign\s+in$/i,
     /^(seguindo|following|salvos?|saved)$/i,
     /sugestões?\s+de\s+pesquisa|search\s+suggestion/i,
   ];
@@ -735,25 +731,17 @@ router.post("/scraper/search", async (req, res): Promise<void> => {
       rawArticles.slice(0, maxResults).map(async (article: any) => {
         const cleanDescription = article.description || "";
 
-        // Use the real article URL (extracted from description <a href>) not Google News redirect
-        let fetchUrl = article.articleUrl || article.link || "";
+        // Use the real article URL extracted from the RSS description; fall back to the
+        // Google News redirect link (fetchArticleData will follow it and reject Google pages).
+        const fetchUrl = article.articleUrl || article.link || "";
+        if (!fetchUrl) return null;
 
-        // If we still have a Google News redirect link, try to resolve it to the real article URL.
-        // This prevents scraping Google's own pages (which include search bars, menus, etc.)
-        if (fetchUrl && isGoogleUrl(fetchUrl)) {
-          const resolved = await resolveGoogleNewsUrl(fetchUrl);
-          if (!resolved) return null; // Couldn't get the real URL, skip this article
-          fetchUrl = resolved;
-        }
-
-        // Final safety check: skip if URL is still a Google domain
-        if (!fetchUrl || isGoogleUrl(fetchUrl)) return null;
-
-        // Fetch full content and OG image from the real article page
+        // Fetch full content and OG image from the real article page.
+        // fetchArticleData follows redirects and discards any result that ends up on a Google domain.
         const articleData = await fetchArticleData(fetchUrl);
         const rawContent = articleData.content || cleanDescription;
 
-        if (!rawContent || rawContent.length < 100) {
+        if (!rawContent || rawContent.length < 60) {
           return null;
         }
 
@@ -820,9 +808,28 @@ router.post("/scraper/fetch-all", async (req, res): Promise<void> => {
   try {
     const allArticles: any[] = [];
 
+    // Load active sources from DB (fall back to hardcoded list if DB is empty)
+    let dbSources = await db.select().from(newsSourcesTable)
+      .where(eq(newsSourcesTable.active, true))
+      .orderBy(asc(newsSourcesTable.sortOrder));
+
+    if (dbSources.length === 0) {
+      dbSources = NEWS_SOURCES.filter(s => s.active).map((s, i) => ({
+        id: i + 1,
+        name: s.name,
+        url: s.url,
+        rssFeed: (s as any).rssFeed || null,
+        language: s.language,
+        active: s.active,
+        type: s.type,
+        sortOrder: i + 1,
+        createdAt: new Date(),
+      }));
+    }
+
     // Fetch from all active RSS sources in parallel
-    const fetchPromises = NEWS_SOURCES
-      .filter(s => s.type === "rss" && s.active)
+    const fetchPromises = dbSources
+      .filter(s => s.type === "rss" && s.rssFeed)
       .map(async (source) => {
         try {
           const rawArticles = await fetchRssFeed(source.rssFeed!);

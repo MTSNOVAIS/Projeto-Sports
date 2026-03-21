@@ -5,6 +5,7 @@ import teamsRouter from "./teams";
 import categoriesRouter from "./categories";
 import statsRouter from "./stats";
 import scraperRouter from "./scraper";
+import settingsRouter from "./settings";
 
 const router: IRouter = Router();
 
@@ -14,5 +15,6 @@ router.use(teamsRouter);
 router.use(categoriesRouter);
 router.use(statsRouter);
 router.use(scraperRouter);
+router.use(settingsRouter);
 
 export default router;
