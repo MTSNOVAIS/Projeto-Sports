@@ -420,6 +420,7 @@ function extractMainContent(html: string): string {
 }
 
 // Helper function to extract OG/Twitter image from HTML
+// Only returns images from the real article page — never Google-generated images.
 function extractOgImage(html: string): string | null {
   const patterns = [
     /<meta\s+property=["']og:image["']\s+content=["']([^"']+)["']/i,
@@ -427,54 +428,79 @@ function extractOgImage(html: string): string | null {
     /<meta\s+name=["']twitter:image["']\s+content=["']([^"']+)["']/i,
     /<meta\s+content=["']([^"']+)["']\s+name=["']twitter:image["']/i,
     /<meta\s+property=["']og:image:url["']\s+content=["']([^"']+)["']/i,
+    /<meta\s+name=["']twitter:image:src["']\s+content=["']([^"']+)["']/i,
+    /<meta\s+content=["']([^"']+)["']\s+name=["']twitter:image:src["']/i,
+    /<link\s+rel=["']image_src["']\s+href=["']([^"']+)["']/i,
   ];
   for (const p of patterns) {
     const m = html.match(p);
-    if (m && m[1] && m[1].startsWith("http")) return m[1];
+    if (m && m[1] && m[1].startsWith("http")) {
+      // Reject Google-generated thumbnail URLs
+      if (isGoogleUrl(m[1])) continue;
+      return m[1];
+    }
   }
   return null;
 }
 
-// Resolve a Google News redirect URL to the real article URL
-// Google News uses redirect links like news.google.com/rss/articles/... that eventually
-// lead to the real article. We follow them manually to avoid scraping Google's own pages.
+// Resolve a Google News redirect URL to the real article URL.
+// Google News uses several redirect mechanisms; we try them all in order.
 async function resolveGoogleNewsUrl(googleUrl: string): Promise<string> {
+  const headers = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept-Language": "pt-BR,pt;q=0.9,en;q=0.8",
+  };
+
   try {
-    // Try manual redirect first to catch the Location header
-    const response = await fetch(googleUrl, {
-      headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-      },
-      redirect: "manual",
-      timeout: 10000,
-    } as any);
-
-    if (response.status >= 300 && response.status < 400) {
-      const location = response.headers.get("location");
-      if (location && !isGoogleUrl(location)) {
-        return location;
-      }
+    // 1. Try manual redirect to capture Location header
+    const manualRes = await fetch(googleUrl, { headers, redirect: "manual", timeout: 10000 } as any);
+    if (manualRes.status >= 300 && manualRes.status < 400) {
+      const loc = manualRes.headers.get("location");
+      if (loc && !isGoogleUrl(loc)) return loc;
     }
 
-    // Fall back: follow redirects and check the final URL
-    const followed = await fetch(googleUrl, {
-      headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-      },
-      redirect: "follow",
-      timeout: 10000,
-    } as any);
+    // 2. Follow redirects automatically and check final URL
+    const followRes = await fetch(googleUrl, { headers, redirect: "follow", timeout: 12000 } as any);
+    const finalUrl = (followRes as any).url || googleUrl;
+    if (!isGoogleUrl(finalUrl)) return finalUrl;
 
-    const finalUrl = (followed as any).url || googleUrl;
-    if (!isGoogleUrl(finalUrl)) {
-      return finalUrl;
-    }
+    // 3. Parse the Google News page HTML for canonical link or JS redirect
+    const pageHtml = await followRes.text();
+
+    const canonicalMatch = /<link[^>]*rel=["']canonical["'][^>]*href=["']([^"']+)["']/i.exec(pageHtml);
+    if (canonicalMatch && !isGoogleUrl(canonicalMatch[1])) return canonicalMatch[1];
+
+    const jsRedirectMatch = /window\.location(?:\.href)?\s*=\s*["']([^"']+)["']/i.exec(pageHtml);
+    if (jsRedirectMatch && !isGoogleUrl(jsRedirectMatch[1])) return jsRedirectMatch[1];
 
     return "";
   } catch {
     return "";
   }
+}
+
+// Extract structured article content from JSON-LD (many major news sites include this)
+function extractJsonLdContent(html: string): string {
+  const scriptRegex = /<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
+  let match;
+  while ((match = scriptRegex.exec(html)) !== null) {
+    try {
+      const raw = match[1].trim();
+      const data = JSON.parse(raw);
+      const items = Array.isArray(data) ? data : [data];
+      for (const item of items) {
+        const type = item["@type"];
+        if (type === "NewsArticle" || type === "Article" || type === "ReportageNewsArticle" || type === "SportsNewsArticle") {
+          const body = item.articleBody || item.description || "";
+          if (body && body.length > 200) return body;
+        }
+      }
+    } catch {
+      // Invalid JSON, continue
+    }
+  }
+  return "";
 }
 
 // Returns true if a URL belongs to any Google domain
@@ -497,8 +523,9 @@ async function fetchArticleData(url: string): Promise<{ content: string; image: 
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         "Accept-Language": "pt-BR,pt;q=0.9,en;q=0.8,es;q=0.7",
+        "Cache-Control": "no-cache",
       },
-      timeout: 15000,
+      timeout: 20000,
       redirect: "follow",
     } as any);
 
@@ -510,86 +537,82 @@ async function fetchArticleData(url: string): Promise<{ content: string; image: 
     const finalUrl = (response as any).url || url;
 
     // If we ended up on a Google page (e.g. failed redirect), bail out immediately
-    // to avoid scraping Google's search bar, menus, and UI elements into article content.
     if (isGoogleUrl(finalUrl)) {
       console.warn(`fetchArticleData: resolved to Google domain, skipping: ${finalUrl}`);
       return empty;
     }
 
     const html = await response.text();
+
+    // Extract OG image only from the real article page (never from Google)
     const image = extractOgImage(html);
-    
-    // First, remove unnecessary sections
+
+    // ── Strategy 1: JSON-LD structured data ─────────────────────────────────
+    // Many major news sites (ESPN, BBC, Marca, AS, etc.) embed the full article
+    // body in JSON-LD. This is the most reliable source when available.
+    const jsonLdContent = extractJsonLdContent(html);
+    if (jsonLdContent && jsonLdContent.length > 200) {
+      return { content: jsonLdContent, image, finalUrl };
+    }
+
+    // ── Strategy 2: HTML content extraction ─────────────────────────────────
     let cleaned = cleanArticleContent(html);
-    
-    // Look for common article content containers
-    let content = "";
-    
-    // Try to find content in common article tags/classes
-    const patterns = [
+
+    // Try content containers from most to least specific
+    const containerPatterns = [
+      // Semantic
       /<article[^>]*>([\s\S]*?)<\/article>/i,
+      // Common CMS class names
+      /<div[^>]*class="[^"]*(?:article-body|article-content|article-text|article__body|article__content)[^"]*"[^>]*>([\s\S]*?)<\/div>/i,
+      /<div[^>]*class="[^"]*(?:entry-content|post-content|post-body|story-body|story-content|story__body|story__text)[^"]*"[^>]*>([\s\S]*?)<\/div>/i,
+      /<div[^>]*class="[^"]*(?:news-body|news-content|news-article|article-main|article-detail)[^"]*"[^>]*>([\s\S]*?)<\/div>/i,
+      /<div[^>]*class="[^"]*(?:content-body|content-text|main-content|page-content|wysiwyg)[^"]*"[^>]*>([\s\S]*?)<\/div>/i,
+      /<div[^>]*class="[^"]*(?:noticia|cuerpo|cuerpo-noticia|texto-noticia)[^"]*"[^>]*>([\s\S]*?)<\/div>/i,
+      /<section[^>]*class="[^"]*(?:article|content|body|story|noticia)[^"]*"[^>]*>([\s\S]*?)<\/section>/i,
+      // Broader fallbacks
       /<div[^>]*class="[^"]*article[^"]*"[^>]*>([\s\S]*?)<\/div>/i,
       /<div[^>]*class="[^"]*content[^"]*"[^>]*>([\s\S]*?)<\/div>/i,
       /<div[^>]*class="[^"]*body[^"]*"[^>]*>([\s\S]*?)<\/div>/i,
       /<main[^>]*>([\s\S]*?)<\/main>/i,
     ];
-    
-    for (const pattern of patterns) {
-      const match = cleaned.match(pattern);
-      if (match && match[1]) {
-        content = match[1];
+
+    let contentHtml = "";
+    for (const pattern of containerPatterns) {
+      const m = cleaned.match(pattern);
+      if (m && m[1] && m[1].length > 300) {
+        contentHtml = m[1];
         break;
       }
     }
-    
-    // If no container found, use entire cleaned content
-    if (!content) {
-      content = cleaned;
-    }
-    
-    // Extract ALL paragraphs before any HTML stripping
-    const rawParagraphs = content.match(/<p[^>]*>([\s\S]*?)<\/p>/gi) || [];
-    
-    // Process each paragraph: clean HTML and filter
-    const cleanedParagraphs: string[] = [];
-    
-    for (const rawPara of rawParagraphs) {
-      // Strip HTML from this paragraph
-      let paraText = stripHtmlTags(rawPara).trim();
-      
-      // Skip empty paragraphs
-      if (paraText.length < 40) continue;
-      
-      // Skip meta-information paragraphs
+    if (!contentHtml) contentHtml = cleaned;
+
+    // Extract paragraphs
+    const textBlocks: string[] = [];
+    const paraRegex = /<p[^>]*>([\s\S]*?)<\/p>/gi;
+    let paraMatch;
+    while ((paraMatch = paraRegex.exec(contentHtml)) !== null) {
+      let paraText = stripHtmlTags(paraMatch[1]).trim();
+
+      if (paraText.length < 30) continue;
       if (isMetaParagraph(paraText)) continue;
-      
-      // Remove source attributions and promotional headers that interrupt content
-      // Match patterns like " MUNDO DEPORTIVO Palabra...: " or " REUTERS Title...: "
+
+      // Remove inline agency/photo attributions
       paraText = paraText
         .replace(/\s+(MUNDO\s+DEPORTIVO|GETTY\s+IMAGES?|GETTY|AFP|REUTERS|EL\s+PAÍS|AS\.COM|MARCA|BBC|ESPN|SPORT\.ES|PERIODISTA|REDACTOR)\s+([A-Z][a-z]+[\w\s]*:\s*)?/gi, " ")
         .trim();
-      
-      // Skip paragraphs that look like section headers
-      const isProbablyHeader = /^[A-Z\s]{3,}$/.test(paraText) && paraText.length < 60;
-      if (isProbablyHeader) continue;
-      
-      // Split very long paragraphs by sentence for readability
-      if (paraText.length > 500) {
-        const sentences = paraText
-          .split(/(?<=[.!?])\s+(?=[A-Z])/);
-        if (sentences.length > 1) {
-          paraText = sentences.join("\n");
-        }
-      }
-      
-      cleanedParagraphs.push(paraText);
+
+      if (paraText.length < 30) continue;
+
+      // Skip all-caps short strings (section labels)
+      if (/^[A-ZÁÉÍÓÚÑ\s]{3,}$/.test(paraText) && paraText.length < 60) continue;
+
+      textBlocks.push(paraText);
     }
-    
-    // Join paragraphs with double newlines
-    const finalContent = cleanedParagraphs.join("\n\n");
-    
+
+    const finalContent = textBlocks.join("\n\n");
+
     return {
-      content: finalContent.length > 300 ? finalContent : "",
+      content: finalContent.length > 200 ? finalContent : "",
       image,
       finalUrl,
     };
