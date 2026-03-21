@@ -291,6 +291,12 @@ function isMetaParagraph(text: string): boolean {
     /\d{1,2}:\d{2}\s*(cet|gmt|utc|h|am|pm)/i,            // Times
     /ultima\s+actualizacion|updated|share|compartir|tags|comments|comentarios/i, // Update notes
     /mundo deportivo|getty|reuters|afp|el país|as\.com/i, // Source attributions mixed in
+    // Google UI elements that can leak in when redirect resolution partially fails
+    /google\s+news|google\s+search|pesquisar\s+no\s+google|search\s+google/i,
+    /^pesquisar$|^search$|^fazer\s+login$|^sign\s+in$|^entrar$/i,
+    /^(notícias|noticias|news|sports|esportes|all|tudo|para\s+você|for\s+you)$/i,
+    /^(seguindo|following|salvos?|saved)$/i,
+    /sugestões?\s+de\s+pesquisa|search\s+suggestion/i,
   ];
   
   return metaPatterns.some(pattern => pattern.test(cleaned));
@@ -379,6 +385,11 @@ function cleanArticleContent(html: string): string {
     
     // Navigation
     /<[^>]*class="[^"]*nav[^"]*"[^>]*>[\s\S]*?<\/[^>]*>/gi,
+
+    // Google-specific elements (search bar, header menus, etc.)
+    /<[^>]*(?:id|class)="[^"]*(?:gb_|gf-|search-form|search-bar|g-search|top-bar|masthead)[^"]*"[^>]*>[\s\S]*?<\/[^>]*>/gi,
+    /<form[^>]*(?:action|id|class)="[^"]*(?:search|pesquisa|busca)[^"]*"[^>]*>[\s\S]*?<\/form>/gi,
+    /<header[^>]*>[\s\S]*?<\/header>/gi,
   ];
   
   for (const pattern of unnecessary) {
@@ -424,6 +435,58 @@ function extractOgImage(html: string): string | null {
   return null;
 }
 
+// Resolve a Google News redirect URL to the real article URL
+// Google News uses redirect links like news.google.com/rss/articles/... that eventually
+// lead to the real article. We follow them manually to avoid scraping Google's own pages.
+async function resolveGoogleNewsUrl(googleUrl: string): Promise<string> {
+  try {
+    // Try manual redirect first to catch the Location header
+    const response = await fetch(googleUrl, {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+      },
+      redirect: "manual",
+      timeout: 10000,
+    } as any);
+
+    if (response.status >= 300 && response.status < 400) {
+      const location = response.headers.get("location");
+      if (location && !isGoogleUrl(location)) {
+        return location;
+      }
+    }
+
+    // Fall back: follow redirects and check the final URL
+    const followed = await fetch(googleUrl, {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+      },
+      redirect: "follow",
+      timeout: 10000,
+    } as any);
+
+    const finalUrl = (followed as any).url || googleUrl;
+    if (!isGoogleUrl(finalUrl)) {
+      return finalUrl;
+    }
+
+    return "";
+  } catch {
+    return "";
+  }
+}
+
+// Returns true if a URL belongs to any Google domain
+function isGoogleUrl(url: string): boolean {
+  try {
+    const hostname = new URL(url).hostname;
+    return /(?:^|\.)google\.com$|(?:^|\.)news\.google\.com$|(?:^|\.)googleapis\.com$/.test(hostname);
+  } catch {
+    return false;
+  }
+}
+
 // Helper function to fetch full article content from URL
 // Returns content text, OG image URL, and final URL after redirects
 async function fetchArticleData(url: string): Promise<{ content: string; image: string | null; finalUrl: string }> {
@@ -445,6 +508,14 @@ async function fetchArticleData(url: string): Promise<{ content: string; image: 
     }
 
     const finalUrl = (response as any).url || url;
+
+    // If we ended up on a Google page (e.g. failed redirect), bail out immediately
+    // to avoid scraping Google's search bar, menus, and UI elements into article content.
+    if (isGoogleUrl(finalUrl)) {
+      console.warn(`fetchArticleData: resolved to Google domain, skipping: ${finalUrl}`);
+      return empty;
+    }
+
     const html = await response.text();
     const image = extractOgImage(html);
     
@@ -642,7 +713,18 @@ router.post("/scraper/search", async (req, res): Promise<void> => {
         const cleanDescription = article.description || "";
 
         // Use the real article URL (extracted from description <a href>) not Google News redirect
-        const fetchUrl = article.articleUrl || article.link || "";
+        let fetchUrl = article.articleUrl || article.link || "";
+
+        // If we still have a Google News redirect link, try to resolve it to the real article URL.
+        // This prevents scraping Google's own pages (which include search bars, menus, etc.)
+        if (fetchUrl && isGoogleUrl(fetchUrl)) {
+          const resolved = await resolveGoogleNewsUrl(fetchUrl);
+          if (!resolved) return null; // Couldn't get the real URL, skip this article
+          fetchUrl = resolved;
+        }
+
+        // Final safety check: skip if URL is still a Google domain
+        if (!fetchUrl || isGoogleUrl(fetchUrl)) return null;
 
         // Fetch full content and OG image from the real article page
         const articleData = await fetchArticleData(fetchUrl);
