@@ -17,7 +17,6 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   const navLinks = [
     { href: "/dashboard", label: "Início" },
     { href: "/dashboard/artigos", label: "Artigos" },
-    { href: "/dashboard/importar", label: "Importar" },
     { href: "/dashboard/times", label: "Times" },
     { href: "/dashboard/usuarios", label: "Usuários" },
     { href: "/dashboard/cargos", label: "Cargos" },

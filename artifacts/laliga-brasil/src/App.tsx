@@ -15,7 +15,6 @@ import LoginPage from "@/pages/login";
 import AdminDashboard from "@/pages/admin/dashboard";
 import AdminArticlesList from "@/pages/admin/articles-list";
 import AdminArticleEditor from "@/pages/admin/article-editor";
-import AdminImport from "@/pages/admin/import";
 import AdminTeamsList from "@/pages/admin/teams-list";
 import AdminTeamEditor from "@/pages/admin/team-editor";
 import AdminUsersList from "@/pages/admin/users-list";
@@ -60,11 +59,6 @@ function Router() {
       <Route path="/dashboard/artigos/:id/editar">
         <ProtectedRoute>
           <AdminArticleEditor />
-        </ProtectedRoute>
-      </Route>
-      <Route path="/dashboard/importar">
-        <ProtectedRoute>
-          <AdminImport />
         </ProtectedRoute>
       </Route>
       <Route path="/dashboard/times">
