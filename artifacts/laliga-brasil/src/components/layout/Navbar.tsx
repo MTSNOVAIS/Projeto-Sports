@@ -16,7 +16,7 @@ export function Navbar() {
     { href: "/", label: "Home" },
     { href: "/times", label: "Times" },
     { href: "/busca", label: "Busca" },
-    { href: "/categoria/resultados", label: "Resultados" },
+    { href: "/resultados", label: "Resultados" },
   ];
 
   // Fechar menu quando navega ou clica fora

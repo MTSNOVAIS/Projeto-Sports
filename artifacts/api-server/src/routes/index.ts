@@ -5,6 +5,7 @@ import teamsRouter from "./teams";
 import categoriesRouter from "./categories";
 import statsRouter from "./stats";
 import settingsRouter from "./settings";
+import sofascoreRouter from "./sofascore";
 
 const router: IRouter = Router();
 
@@ -14,5 +15,6 @@ router.use(teamsRouter);
 router.use(categoriesRouter);
 router.use(statsRouter);
 router.use(settingsRouter);
+router.use(sofascoreRouter);
 
 export default router;

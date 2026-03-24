@@ -19,6 +19,10 @@ import AdminTeamsList from "@/pages/admin/teams-list";
 import AdminTeamEditor from "@/pages/admin/team-editor";
 import AdminUsersList from "@/pages/admin/users-list";
 import AdminRolesList from "@/pages/admin/roles-list";
+import AdminMatches from "@/pages/admin/matches";
+import AdminHighlights from "@/pages/admin/highlights";
+import ResultsPage from "@/pages/results";
+import MatchPage from "@/pages/match";
 import NotFound from "@/pages/not-found";
 
 const queryClient = new QueryClient({
@@ -40,6 +44,8 @@ function Router() {
       <Route path="/categoria/:category" component={CategoryPage} />
       <Route path="/busca" component={SearchPage} />
       <Route path="/login" component={LoginPage} />
+      <Route path="/resultados" component={ResultsPage} />
+      <Route path="/partidas/:id" component={MatchPage} />
 
       <Route path="/dashboard">
         <ProtectedRoute>
@@ -79,6 +85,16 @@ function Router() {
       <Route path="/dashboard/cargos">
         <ProtectedRoute>
           <AdminRolesList />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/dashboard/partidas">
+        <ProtectedRoute>
+          <AdminMatches />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/dashboard/destaques">
+        <ProtectedRoute>
+          <AdminHighlights />
         </ProtectedRoute>
       </Route>
 

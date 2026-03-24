@@ -2,7 +2,7 @@
 
 ## Overview
 
-A full-stack Brazilian news site about Spanish football (La Liga). Built with React + Vite frontend, Express API backend, PostgreSQL database with Drizzle ORM. Fetches real articles from international RSS sources (Marca, Mundo Deportivo, etc) and displays them in a responsive, beautiful interface with team filtering and search capabilities.
+A full-stack Brazilian news site about Spanish football (La Liga). Built with React + Vite frontend, Express API backend, PostgreSQL database with Drizzle ORM. Features real-time match data via SofaScore API proxy, full match detail pages with minute-by-minute incidents, and a complete CMS for managing articles, teams, matches, and highlights.
 
 ## Stack
 
@@ -31,25 +31,22 @@ A full-stack Brazilian news site about Spanish football (La Liga). Built with Re
 ## Features
 
 ### Public Site
-- **Homepage**: Breaking news ticker, hero featured article, latest news grid, trending sidebar, team shortcuts bar
-- **Article page** (/noticias/:slug): Full article with reading time, view count, share buttons, source attribution (with link to original source)
-- **Teams list** (/times): Grid of all 20 La Liga clubs
-- **Team page** (/times/:slug): Team profile with crest, info, recent articles
+- **Homepage**: Breaking news ticker, hero featured article(s), latest news grid, featured match card in sidebar
+- **Article page** (/noticias/:slug): Full article with reading time, view count, share buttons, source attribution
+- **Results page** (/resultados): Live La Liga match results from SofaScore — pinned matches + full round browser
+- **Match detail** (/partidas/:id): Full match page with scoreboard, minute-by-minute incidents, statistics, lineups, H2H history
+- **Teams list** (/times): Grid of all La Liga clubs
+- **Team page** (/times/:slug): Team profile with info and recent articles
 - **Category pages** (/categoria/:category): Articles filtered by category
 - **Search** (/busca): Real-time article search
 
 ### Dashboard (/dashboard)
 - **Overview**: Stats (total articles, published, drafts, scheduled, total views), recent articles table
 - **Articles** (/dashboard/artigos): Full CRUD with filters by status, category, team, source
-- **Article Editor** (/dashboard/artigos/novo|/:id/editar): Rich editor with custom datetime picker for scheduling
-- **Import** (/dashboard/importar): 
-  - Unified timeline interface fetching from all RSS sources in parallel
-  - Team filter sidebar (add/remove La Liga teams to filter articles)
-  - Articles auto-publish with source site name as author attribution
-  - "Limpar" button to clear all team filters
-  - Real-time updates from RSS feeds: Marca, Mundo Deportivo (ESPN, BBC, AS, Sport may be unavailable)
-  - One-click import to drafts for editorial review
-- **Teams** (/dashboard/times): Edit all 20 La Liga team profiles, logos, colors, descriptions
+- **Article Editor** (/dashboard/artigos/novo|/:id/editar): Rich editor with datetime picker for scheduling
+- **Destaques** (/dashboard/destaques): Manage featured articles and breaking news ticker items
+- **Partidas** (/dashboard/partidas): Browse La Liga rounds from SofaScore, pin matches to results page, set one featured match on homepage
+- **Teams** (/dashboard/times): Edit La Liga team profiles, logos, colors, descriptions
 - **Users** (/dashboard/usuarios): Manage admin users with role assignment
 - **Roles** (/dashboard/cargos): Manage user roles with 17 granular permissions
 

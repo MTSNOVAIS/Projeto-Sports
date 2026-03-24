@@ -1,0 +1,103 @@
+import { useQuery } from "@tanstack/react-query";
+
+const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
+
+async function apiFetch<T>(path: string): Promise<T> {
+  const res = await fetch(`${BASE}${path}`);
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+export function useSofascoreEvent(id: number | string | undefined) {
+  return useQuery({
+    queryKey: ["sofascore", "event", id],
+    queryFn: () => apiFetch<any>(`/api/sofascore/event/${id}`),
+    enabled: !!id,
+    refetchInterval: (data: any) => {
+      const status = data?.state?.event?.status?.type;
+      return status === "inprogress" ? 30_000 : false;
+    },
+  });
+}
+
+export function useSofascoreIncidents(id: number | string | undefined) {
+  return useQuery({
+    queryKey: ["sofascore", "incidents", id],
+    queryFn: () => apiFetch<any>(`/api/sofascore/event/${id}/incidents`),
+    enabled: !!id,
+    refetchInterval: (data: any) => 30_000,
+  });
+}
+
+export function useSofascoreStatistics(id: number | string | undefined) {
+  return useQuery({
+    queryKey: ["sofascore", "statistics", id],
+    queryFn: () => apiFetch<any>(`/api/sofascore/event/${id}/statistics`),
+    enabled: !!id,
+    refetchInterval: 60_000,
+  });
+}
+
+export function useSofascoreLineups(id: number | string | undefined) {
+  return useQuery({
+    queryKey: ["sofascore", "lineups", id],
+    queryFn: () => apiFetch<any>(`/api/sofascore/event/${id}/lineups`),
+    enabled: !!id,
+  });
+}
+
+export function useSofascoreH2H(id: number | string | undefined) {
+  return useQuery({
+    queryKey: ["sofascore", "h2h", id],
+    queryFn: () => apiFetch<any>(`/api/sofascore/event/${id}/h2h`),
+    enabled: !!id,
+  });
+}
+
+export function useSofascoreTeam(id: number | string | undefined) {
+  return useQuery({
+    queryKey: ["sofascore", "team", id],
+    queryFn: () => apiFetch<any>(`/api/sofascore/team/${id}`),
+    enabled: !!id,
+  });
+}
+
+export function useSofascoreTeamLastEvents(id: number | string | undefined) {
+  return useQuery({
+    queryKey: ["sofascore", "team", id, "last"],
+    queryFn: () => apiFetch<any>(`/api/sofascore/team/${id}/events/last/0`),
+    enabled: !!id,
+  });
+}
+
+export function useSofascoreTeamNextEvents(id: number | string | undefined) {
+  return useQuery({
+    queryKey: ["sofascore", "team", id, "next"],
+    queryFn: () => apiFetch<any>(`/api/sofascore/team/${id}/events/next/0`),
+    enabled: !!id,
+  });
+}
+
+export function useSofascoreLaLigaSeasons() {
+  return useQuery({
+    queryKey: ["sofascore", "laliga", "seasons"],
+    queryFn: () => apiFetch<any>(`/api/sofascore/tournament/8/seasons`),
+    staleTime: 60 * 60 * 1000,
+  });
+}
+
+export function useSofascoreLaLigaLastEvents(seasonId: number | undefined) {
+  return useQuery({
+    queryKey: ["sofascore", "laliga", "last", seasonId],
+    queryFn: () => apiFetch<any>(`/api/sofascore/tournament/8/season/${seasonId}/events/last/0`),
+    enabled: !!seasonId,
+  });
+}
+
+export function useSofascoreLaLigaNextEvents(seasonId: number | undefined) {
+  return useQuery({
+    queryKey: ["sofascore", "laliga", "next", seasonId],
+    queryFn: () => apiFetch<any>(`/api/sofascore/tournament/8/season/${seasonId}/events/next/0`),
+    enabled: !!seasonId,
+  });
+}
