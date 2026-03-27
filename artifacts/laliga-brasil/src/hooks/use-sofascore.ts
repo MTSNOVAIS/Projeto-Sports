@@ -13,6 +13,23 @@ export function teamImageUrl(teamId: number | string | undefined): string {
   return `${BASE}/api/sofascore/team-image/${teamId}`;
 }
 
+export function tournamentImageUrl(tournamentId: number | string | undefined): string {
+  if (!tournamentId) return "";
+  return `${BASE}/api/sofascore/tournament-image/${tournamentId}`;
+}
+
+export async function sofascoreSearch(q: string) {
+  const res = await fetch(`${BASE}/api/sofascore/search?q=${encodeURIComponent(q)}`);
+  if (!res.ok) throw new Error("Erro na busca");
+  return res.json();
+}
+
+export async function sofascoreTournamentSeasons(id: number | string) {
+  const res = await fetch(`${BASE}/api/sofascore/tournament/${id}/seasons`);
+  if (!res.ok) throw new Error("Erro ao buscar temporadas");
+  return res.json();
+}
+
 export function useSofascoreEvent(id: number | string | undefined) {
   return useQuery({
     queryKey: ["sofascore", "event", id],

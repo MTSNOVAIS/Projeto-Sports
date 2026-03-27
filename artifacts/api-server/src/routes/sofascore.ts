@@ -89,12 +89,46 @@ router.get("/sofascore/team/:id/events/next/:page", async (req, res): Promise<vo
   }
 });
 
+router.get("/sofascore/search", async (req, res): Promise<void> => {
+  try {
+    const q = String(req.query.q || "");
+    if (!q) { res.json({ results: [] }); return; }
+    const data = await sofascoreFetch(`/search/${encodeURIComponent(q)}`);
+    res.json(data);
+  } catch (e: any) {
+    res.status(502).json({ error: e.message });
+  }
+});
+
 router.get("/sofascore/search/team/:name", async (req, res): Promise<void> => {
   try {
     const data = await sofascoreFetch(`/search/${encodeURIComponent(req.params.name)}`);
     res.json(data);
   } catch (e: any) {
     res.status(502).json({ error: e.message });
+  }
+});
+
+router.get("/sofascore/tournament/:id", async (req, res): Promise<void> => {
+  try {
+    const data = await sofascoreFetch(`/unique-tournament/${req.params.id}`);
+    res.json(data);
+  } catch (e: any) {
+    res.status(502).json({ error: e.message });
+  }
+});
+
+router.get("/sofascore/tournament-image/:id", async (req, res): Promise<void> => {
+  try {
+    const imgRes = await fetch(`${SOFASCORE_BASE}/unique-tournament/${req.params.id}/image`, { headers: SOFASCORE_HEADERS });
+    if (!imgRes.ok) { res.status(404).end(); return; }
+    const ct = imgRes.headers.get("content-type") || "image/png";
+    res.setHeader("Content-Type", ct);
+    res.setHeader("Cache-Control", "public, max-age=86400");
+    const buf = await imgRes.arrayBuffer();
+    res.send(Buffer.from(buf));
+  } catch (e: any) {
+    res.status(502).end();
   }
 });
 

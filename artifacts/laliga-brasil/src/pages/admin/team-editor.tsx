@@ -1,13 +1,16 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useRoute, Link, useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import {
   Shield, Save, Archive, ArchiveRestore, Plus, Trash2,
   ChevronLeft, MapPin, Building2, Calendar, Palette,
-  Link as LinkIcon, Trophy, AlertTriangle, Check, Image, Globe
+  Link as LinkIcon, Trophy, AlertTriangle, Check, Image, Globe,
+  Search, X, Loader2
 } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { useAdminLeagues } from "@/hooks/use-leagues";
+import { sofascoreSearch, teamImageUrl } from "@/hooks/use-sofascore";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -41,6 +44,107 @@ interface TeamData {
   articleCount: number;
   leagueId: number | null;
   sofascoreId: string;
+}
+
+function SofascoreTeamSearch({ currentId, onSelect }: { currentId: string; onSelect: (id: number) => void }) {
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<any[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [open, setOpen] = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+
+  useEffect(() => {
+    if (!query.trim()) { setResults([]); return; }
+    clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(async () => {
+      setSearching(true);
+      try {
+        const data = await sofascoreSearch(query);
+        setResults((data.teams || []).slice(0, 10));
+      } catch {
+        setResults([]);
+      } finally {
+        setSearching(false);
+      }
+    }, 400);
+  }, [query]);
+
+  function handlePick(team: any) {
+    onSelect(team.id);
+    setOpen(false);
+    setQuery("");
+    setResults([]);
+  }
+
+  return (
+    <div>
+      <label className="block text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5">Clube no Sofascore</label>
+      {currentId ? (
+        <div className="flex items-center gap-3 bg-background border border-primary/40 rounded-lg px-3 py-2.5">
+          <img src={teamImageUrl(currentId)} alt="" className="w-8 h-8 object-contain" onError={e => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
+          <span className="text-sm text-white font-mono flex-1">ID: {currentId}</span>
+          <button onClick={() => { onSelect(0); setOpen(true); }} className="text-xs text-muted-foreground hover:text-red-400 transition-colors">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      ) : (
+        <button
+          onClick={() => setOpen(v => !v)}
+          className="w-full flex items-center gap-2 bg-background border border-border rounded-lg px-3 py-2.5 text-muted-foreground text-sm hover:border-primary/50 transition-colors"
+        >
+          <Search className="w-4 h-4" /> Pesquisar clube no Sofascore...
+        </button>
+      )}
+
+      <AnimatePresence>
+        {(open || (!currentId && false)) && (
+          <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="mt-2">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+              {searching && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground animate-spin" />}
+              <input
+                autoFocus
+                value={query}
+                onChange={e => setQuery(e.target.value)}
+                placeholder="Nome do clube..."
+                className="w-full bg-background border border-border rounded-lg pl-9 pr-9 py-2 text-white text-sm focus:border-primary focus:outline-none"
+              />
+              <button onClick={() => setOpen(false)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-white">
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+            {results.length > 0 && (
+              <div className="mt-2 space-y-1 max-h-60 overflow-y-auto">
+                {results.map((t: any) => (
+                  <button
+                    key={t.id}
+                    onClick={() => handlePick(t)}
+                    className="w-full flex items-center gap-3 px-3 py-2 bg-background border border-border rounded-lg hover:border-primary/50 transition-colors text-left"
+                  >
+                    <img src={teamImageUrl(t.id)} alt="" className="w-7 h-7 object-contain flex-shrink-0" onError={e => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-white font-bold truncate">{t.name}</p>
+                      <p className="text-xs text-muted-foreground">{t.country?.name || ""}</p>
+                    </div>
+                    <span className="text-xs font-mono text-primary/70">#{t.id}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+            {query && !searching && results.length === 0 && (
+              <p className="text-xs text-muted-foreground text-center py-3">Nenhum clube encontrado.</p>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {currentId && !open && (
+        <button onClick={() => setOpen(true)} className="mt-1 text-xs text-muted-foreground hover:text-primary transition-colors">
+          Pesquisar outro clube
+        </button>
+      )}
+    </div>
+  );
 }
 
 export default function AdminTeamEditor() {
@@ -365,8 +469,8 @@ export default function AdminTeamEditor() {
             {/* Liga e Sofascore */}
             <div className="bg-card border border-border rounded-2xl p-6">
               <h2 className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-5 flex items-center gap-2"><Globe className="w-3.5 h-3.5 text-primary" /> Liga e Sofascore</h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="sm:col-span-2">
+              <div className="space-y-4">
+                <div>
                   <label className="block text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5">Liga</label>
                   <select
                     value={team.leagueId || ""}
@@ -379,17 +483,10 @@ export default function AdminTeamEditor() {
                     ))}
                   </select>
                 </div>
-                <div>
-                  <label className="block text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5">ID Sofascore</label>
-                  <input
-                    type="text"
-                    value={team.sofascoreId || ""}
-                    onChange={e => set("sofascoreId", e.target.value)}
-                    placeholder="Ex: 2697"
-                    className="w-full bg-background border border-border rounded-lg px-3 py-2.5 text-white text-sm font-mono focus:border-primary focus:outline-none transition-colors"
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">Usado para buscar partidas por clube</p>
-                </div>
+                <SofascoreTeamSearch
+                  currentId={team.sofascoreId}
+                  onSelect={sfId => set("sofascoreId", String(sfId))}
+                />
               </div>
             </div>
 
