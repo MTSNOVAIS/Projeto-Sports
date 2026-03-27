@@ -4,9 +4,10 @@ import { useToast } from "@/hooks/use-toast";
 import {
   Shield, Save, Archive, ArchiveRestore, Plus, Trash2,
   ChevronLeft, MapPin, Building2, Calendar, Palette,
-  Link as LinkIcon, Trophy, AlertTriangle, Check, Image
+  Link as LinkIcon, Trophy, AlertTriangle, Check, Image, Globe
 } from "lucide-react";
 import { AdminLayout } from "@/components/layout/AdminLayout";
+import { useAdminLeagues } from "@/hooks/use-leagues";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -38,6 +39,8 @@ interface TeamData {
   titles: TeamTitle[];
   archived: boolean;
   articleCount: number;
+  leagueId: number | null;
+  sofascoreId: string;
 }
 
 export default function AdminTeamEditor() {
@@ -45,6 +48,7 @@ export default function AdminTeamEditor() {
   const id = params?.id || "";
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const { data: leagues = [] } = useAdminLeagues();
   
   const isNewTeam = id === "new";
 
@@ -74,6 +78,8 @@ export default function AdminTeamEditor() {
         titles: [],
         archived: false,
         articleCount: 0,
+        leagueId: null,
+        sofascoreId: "",
       });
       setLoading(false);
       return;
@@ -86,6 +92,8 @@ export default function AdminTeamEditor() {
           ...data,
           foundedYear: data.foundedYear ? String(data.foundedYear) : "",
           titles: Array.isArray(data.titles) ? data.titles : [],
+          leagueId: data.leagueId || null,
+          sofascoreId: data.sofascoreId ? String(data.sofascoreId) : "",
         });
       })
       .catch(() => toast({ title: "Erro", description: "Não foi possível carregar o clube.", variant: "destructive" }))
@@ -106,6 +114,8 @@ export default function AdminTeamEditor() {
       const payload = {
         ...team,
         foundedYear: team.foundedYear ? parseInt(team.foundedYear) : null,
+        sofascoreId: team.sofascoreId ? parseInt(team.sofascoreId) : null,
+        leagueId: team.leagueId || null,
       };
       
       const isCreating = isNewTeam || team.id === 0;
@@ -349,6 +359,37 @@ export default function AdminTeamEditor() {
                     />
                   </div>
                 ))}
+              </div>
+            </div>
+
+            {/* Liga e Sofascore */}
+            <div className="bg-card border border-border rounded-2xl p-6">
+              <h2 className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-5 flex items-center gap-2"><Globe className="w-3.5 h-3.5 text-primary" /> Liga e Sofascore</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="sm:col-span-2">
+                  <label className="block text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5">Liga</label>
+                  <select
+                    value={team.leagueId || ""}
+                    onChange={e => set("leagueId", e.target.value ? Number(e.target.value) : null as any)}
+                    className="w-full bg-background border border-border rounded-lg px-3 py-2.5 text-white text-sm focus:border-primary focus:outline-none transition-colors"
+                  >
+                    <option value="">— Sem liga associada —</option>
+                    {(leagues as any[]).map((l: any) => (
+                      <option key={l.id} value={l.id}>{l.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5">ID Sofascore</label>
+                  <input
+                    type="text"
+                    value={team.sofascoreId || ""}
+                    onChange={e => set("sofascoreId", e.target.value)}
+                    placeholder="Ex: 2697"
+                    className="w-full bg-background border border-border rounded-lg px-3 py-2.5 text-white text-sm font-mono focus:border-primary focus:outline-none transition-colors"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">Usado para buscar partidas por clube</p>
+                </div>
               </div>
             </div>
 

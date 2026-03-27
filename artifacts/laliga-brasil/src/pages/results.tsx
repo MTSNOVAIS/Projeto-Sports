@@ -3,7 +3,7 @@ import { Link } from "wouter";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { useMatches } from "@/hooks/use-matches";
-import { useSofascoreEvent, useSofascoreLaLigaSeasons, useSofascoreLaLigaLastEvents, useSofascoreLaLigaNextEvents } from "@/hooks/use-sofascore";
+import { useSofascoreEvent, useSofascoreLaLigaSeasons, useSofascoreLaLigaLastEvents, useSofascoreLaLigaNextEvents, teamImageUrl } from "@/hooks/use-sofascore";
 import { motion } from "framer-motion";
 import { Calendar, Clock, ChevronRight, Trophy, Circle } from "lucide-react";
 
@@ -83,7 +83,7 @@ function MatchCard({ sofascoreId }: { sofascoreId: number }) {
             </span>
             {event.homeTeam.id && (
               <img
-                src={`https://api.sofascore.com/api/v1/team/${event.homeTeam.id}/image`}
+                src={teamImageUrl(event.homeTeam.id)}
                 alt={event.homeTeam.name}
                 className="w-8 h-8 object-contain"
                 onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
@@ -107,7 +107,7 @@ function MatchCard({ sofascoreId }: { sofascoreId: number }) {
           <div className="flex-1 flex items-center gap-3">
             {event.awayTeam.id && (
               <img
-                src={`https://api.sofascore.com/api/v1/team/${event.awayTeam.id}/image`}
+                src={teamImageUrl(event.awayTeam.id)}
                 alt={event.awayTeam.name}
                 className="w-8 h-8 object-contain"
                 onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
@@ -202,7 +202,7 @@ function LaLigaRoundsSection() {
                       <span className={`font-bold text-sm text-right ${isFinished && homeScore > awayScore ? "text-white" : "text-muted-foreground"}`}>
                         {event.homeTeam.name}
                       </span>
-                      <img src={`https://api.sofascore.com/api/v1/team/${event.homeTeam.id}/image`} alt="" className="w-6 h-6 object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                      <img src={teamImageUrl(event.homeTeam.id)} alt="" className="w-6 h-6 object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
                     </div>
                     <div className="min-w-[60px] text-center">
                       {homeScore !== null ? (
@@ -212,7 +212,7 @@ function LaLigaRoundsSection() {
                       )}
                     </div>
                     <div className="flex-1 flex items-center gap-2">
-                      <img src={`https://api.sofascore.com/api/v1/team/${event.awayTeam.id}/image`} alt="" className="w-6 h-6 object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                      <img src={teamImageUrl(event.awayTeam.id)} alt="" className="w-6 h-6 object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
                       <span className={`font-bold text-sm ${isFinished && awayScore > homeScore ? "text-white" : "text-muted-foreground"}`}>
                         {event.awayTeam.name}
                       </span>

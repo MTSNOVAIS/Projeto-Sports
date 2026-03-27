@@ -8,6 +8,11 @@ async function apiFetch<T>(path: string): Promise<T> {
   return res.json();
 }
 
+export function teamImageUrl(teamId: number | string | undefined): string {
+  if (!teamId) return "";
+  return `${BASE}/api/sofascore/team-image/${teamId}`;
+}
+
 export function useSofascoreEvent(id: number | string | undefined) {
   return useQuery({
     queryKey: ["sofascore", "event", id],
@@ -99,5 +104,30 @@ export function useSofascoreLaLigaNextEvents(seasonId: number | undefined) {
     queryKey: ["sofascore", "laliga", "next", seasonId],
     queryFn: () => apiFetch<any>(`/api/sofascore/tournament/8/season/${seasonId}/events/next/0`),
     enabled: !!seasonId,
+  });
+}
+
+export function useSofascoreTournamentSeasons(tournamentId: number | string | undefined) {
+  return useQuery({
+    queryKey: ["sofascore", "tournament", tournamentId, "seasons"],
+    queryFn: () => apiFetch<any>(`/api/sofascore/tournament/${tournamentId}/seasons`),
+    enabled: !!tournamentId,
+    staleTime: 60 * 60 * 1000,
+  });
+}
+
+export function useSofascoreTournamentLastEvents(tournamentId: number | string | undefined, seasonId: number | string | undefined) {
+  return useQuery({
+    queryKey: ["sofascore", "tournament", tournamentId, "season", seasonId, "last"],
+    queryFn: () => apiFetch<any>(`/api/sofascore/tournament/${tournamentId}/season/${seasonId}/events/last/0`),
+    enabled: !!tournamentId && !!seasonId,
+  });
+}
+
+export function useSofascoreTournamentNextEvents(tournamentId: number | string | undefined, seasonId: number | string | undefined) {
+  return useQuery({
+    queryKey: ["sofascore", "tournament", tournamentId, "season", seasonId, "next"],
+    queryFn: () => apiFetch<any>(`/api/sofascore/tournament/${tournamentId}/season/${seasonId}/events/next/0`),
+    enabled: !!tournamentId && !!seasonId,
   });
 }

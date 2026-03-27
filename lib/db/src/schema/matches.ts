@@ -10,6 +10,7 @@ export const matchesTable = pgTable("matches", {
   homeTeamSofascoreId: integer("home_team_sofascore_id"),
   awayTeamSofascoreId: integer("away_team_sofascore_id"),
   tournament: text("tournament").default("La Liga"),
+  leagueId: integer("league_id"),
   showInResults: boolean("show_in_results").notNull().default(true),
   featuredOnHome: boolean("featured_on_home").notNull().default(false),
   pinnedOrder: integer("pinned_order").default(0),

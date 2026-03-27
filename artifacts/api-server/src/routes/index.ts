@@ -6,6 +6,7 @@ import categoriesRouter from "./categories";
 import statsRouter from "./stats";
 import settingsRouter from "./settings";
 import sofascoreRouter from "./sofascore";
+import leaguesRouter from "./leagues";
 
 const router: IRouter = Router();
 
@@ -16,5 +17,6 @@ router.use(categoriesRouter);
 router.use(statsRouter);
 router.use(settingsRouter);
 router.use(sofascoreRouter);
+router.use(leaguesRouter);
 
 export default router;

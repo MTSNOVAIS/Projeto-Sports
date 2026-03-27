@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { db, teamsTable, articlesTable } from "@workspace/db";
+import { db, teamsTable, articlesTable, leaguesTable } from "@workspace/db";
 import { eq, and, desc, count } from "drizzle-orm";
 
 const router: IRouter = Router();
@@ -10,6 +10,8 @@ async function getTeamsWithCount(includeArchived = false) {
     .select({ teamId: articlesTable.teamId, count: count() })
     .from(articlesTable)
     .groupBy(articlesTable.teamId);
+  const leagues = await db.select().from(leaguesTable);
+  const leagueMap = new Map(leagues.map(l => [l.id, l]));
 
   const countMap = new Map(counts.map(c => [c.teamId, Number(c.count)]));
   const filtered = includeArchived ? teams : teams.filter(t => !t.archived);
@@ -17,6 +19,7 @@ async function getTeamsWithCount(includeArchived = false) {
     ...t,
     titles: safeParseJSON(t.titles, []),
     articleCount: countMap.get(t.id) ?? 0,
+    league: t.leagueId ? leagueMap.get(t.leagueId) ?? null : null,
   }));
 }
 
@@ -97,7 +100,7 @@ router.get("/admin/teams/:id", async (req, res): Promise<void> => {
 });
 
 router.post("/admin/teams", async (req, res): Promise<void> => {
-  const { name, slug, shortName, city, stadium, foundedYear, description, logoUrl, primaryColor, secondaryColor, titles } = req.body;
+  const { name, slug, shortName, city, stadium, foundedYear, description, logoUrl, primaryColor, secondaryColor, titles, leagueId, sofascoreId } = req.body;
 
   if (!name || !slug || !shortName || !city || !stadium) {
     res.status(400).json({ error: "name, slug, shortName, city, and stadium are required" });
@@ -112,6 +115,8 @@ router.post("/admin/teams", async (req, res): Promise<void> => {
     primaryColor: primaryColor || "#DB0037",
     secondaryColor: secondaryColor || "#FFFFFF",
     titles: JSON.stringify(titles || []),
+    leagueId: leagueId ? Number(leagueId) : null,
+    sofascoreId: sofascoreId ? Number(sofascoreId) : null,
     archived: false,
   }).returning();
 
@@ -122,7 +127,7 @@ router.put("/admin/teams/:id", async (req, res): Promise<void> => {
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const id = parseInt(raw, 10);
 
-  const { name, slug, shortName, city, stadium, foundedYear, description, logoUrl, primaryColor, secondaryColor, titles } = req.body;
+  const { name, slug, shortName, city, stadium, foundedYear, description, logoUrl, primaryColor, secondaryColor, titles, leagueId, sofascoreId } = req.body;
 
   const [team] = await db
     .update(teamsTable)
@@ -134,6 +139,8 @@ router.put("/admin/teams/:id", async (req, res): Promise<void> => {
       primaryColor: primaryColor || "#DB0037",
       secondaryColor: secondaryColor || "#FFFFFF",
       titles: JSON.stringify(titles || []),
+      leagueId: leagueId ? Number(leagueId) : null,
+      sofascoreId: sofascoreId ? Number(sofascoreId) : null,
     })
     .where(eq(teamsTable.id, id))
     .returning();

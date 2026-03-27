@@ -70,3 +70,17 @@ export function useDeleteMatch() {
     },
   });
 }
+
+export function useBulkImportMatches() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (events: any[]) => apiFetch<any>("/api/admin/matches/bulk", {
+      method: "POST",
+      body: JSON.stringify({ events }),
+    }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin", "matches"] });
+      qc.invalidateQueries({ queryKey: ["matches"] });
+    },
+  });
+}

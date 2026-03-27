@@ -136,6 +136,20 @@ router.get("/sofascore/sport/football/scheduled-events/:date", async (req, res):
   }
 });
 
+router.get("/sofascore/team-image/:id", async (req, res): Promise<void> => {
+  try {
+    const imgRes = await fetch(`${SOFASCORE_BASE}/team/${req.params.id}/image`, { headers: SOFASCORE_HEADERS });
+    if (!imgRes.ok) { res.status(404).end(); return; }
+    const ct = imgRes.headers.get("content-type") || "image/png";
+    res.setHeader("Content-Type", ct);
+    res.setHeader("Cache-Control", "public, max-age=86400");
+    const buf = await imgRes.arrayBuffer();
+    res.send(Buffer.from(buf));
+  } catch (e: any) {
+    res.status(502).end();
+  }
+});
+
 router.get("/matches", async (_req, res): Promise<void> => {
   try {
     const matches = await db
@@ -177,7 +191,7 @@ router.get("/admin/matches", async (_req, res): Promise<void> => {
 
 router.post("/admin/matches", async (req, res): Promise<void> => {
   try {
-    const { sofascoreId, homeTeamName, awayTeamName, homeTeamSofascoreId, awayTeamSofascoreId, tournament, showInResults, featuredOnHome, pinnedOrder, notes } = req.body;
+    const { sofascoreId, homeTeamName, awayTeamName, homeTeamSofascoreId, awayTeamSofascoreId, tournament, leagueId, showInResults, featuredOnHome, pinnedOrder, notes } = req.body;
 
     if (!sofascoreId || !homeTeamName || !awayTeamName) {
       res.status(400).json({ error: "sofascoreId, homeTeamName, awayTeamName required" });
@@ -195,6 +209,7 @@ router.post("/admin/matches", async (req, res): Promise<void> => {
       homeTeamSofascoreId: homeTeamSofascoreId ? Number(homeTeamSofascoreId) : null,
       awayTeamSofascoreId: awayTeamSofascoreId ? Number(awayTeamSofascoreId) : null,
       tournament: tournament || "La Liga",
+      leagueId: leagueId ? Number(leagueId) : null,
       showInResults: showInResults !== false,
       featuredOnHome: featuredOnHome === true,
       pinnedOrder: pinnedOrder || 0,
@@ -208,6 +223,39 @@ router.post("/admin/matches", async (req, res): Promise<void> => {
     } else {
       res.status(500).json({ error: e.message });
     }
+  }
+});
+
+router.post("/admin/matches/bulk", async (req, res): Promise<void> => {
+  try {
+    const { events } = req.body;
+    if (!Array.isArray(events) || events.length === 0) {
+      res.status(400).json({ error: "events array required" });
+      return;
+    }
+    const results = { added: 0, skipped: 0 };
+    for (const event of events) {
+      try {
+        await db.insert(matchesTable).values({
+          sofascoreId: Number(event.sofascoreId),
+          homeTeamName: event.homeTeamName,
+          awayTeamName: event.awayTeamName,
+          homeTeamSofascoreId: event.homeTeamSofascoreId ? Number(event.homeTeamSofascoreId) : null,
+          awayTeamSofascoreId: event.awayTeamSofascoreId ? Number(event.awayTeamSofascoreId) : null,
+          tournament: event.tournament || "La Liga",
+          leagueId: event.leagueId ? Number(event.leagueId) : null,
+          showInResults: true,
+          featuredOnHome: false,
+          pinnedOrder: 0,
+        });
+        results.added++;
+      } catch {
+        results.skipped++;
+      }
+    }
+    res.json(results);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
   }
 });
 

@@ -1,19 +1,23 @@
 import React, { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { useAdminListTeams } from "@/hooks/use-teams";
-import { Shield, Edit, MapPin, Building2, Archive, Search, Trophy, Plus } from "lucide-react";
+import { useAdminLeagues } from "@/hooks/use-leagues";
+import { Shield, Edit, MapPin, Building2, Archive, Search, Trophy, Plus, Globe } from "lucide-react";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 
 export default function AdminTeamsList() {
   const { data: teams, isLoading } = useAdminListTeams();
+  const { data: leagues = [] } = useAdminLeagues();
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"all" | "active" | "archived">("active");
+  const [leagueFilter, setLeagueFilter] = useState<number | null>(null);
   const [, setLocation] = useLocation();
 
   const filtered = (teams || []).filter(t => {
     const matchSearch = t.name.toLowerCase().includes(search.toLowerCase()) || t.city.toLowerCase().includes(search.toLowerCase());
     const matchFilter = filter === "all" ? true : filter === "archived" ? t.archived : !t.archived;
-    return matchSearch && matchFilter;
+    const matchLeague = leagueFilter === null ? true : leagueFilter === -1 ? !(t as any).leagueId : (t as any).leagueId === leagueFilter;
+    return matchSearch && matchFilter && matchLeague;
   });
 
   return (
@@ -34,28 +38,56 @@ export default function AdminTeamsList() {
         </div>
 
         {/* Filters */}
-        <div className="flex flex-col sm:flex-row gap-3 mb-8">
-          <div className="relative flex-1 max-w-xs">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <input
-              type="text"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              placeholder="Buscar clube..."
-              className="w-full bg-card border border-border rounded-lg pl-9 pr-4 py-2 text-sm text-white focus:border-primary focus:outline-none"
-            />
+        <div className="flex flex-col gap-3 mb-8">
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="relative flex-1 max-w-xs">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <input
+                type="text"
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder="Buscar clube..."
+                className="w-full bg-card border border-border rounded-lg pl-9 pr-4 py-2 text-sm text-white focus:border-primary focus:outline-none"
+              />
+            </div>
+            <div className="flex gap-2">
+              {(["active", "archived", "all"] as const).map(f => (
+                <button
+                  key={f}
+                  onClick={() => setFilter(f)}
+                  className={`px-4 py-2 rounded-lg text-sm font-bold transition-colors ${filter === f ? "bg-primary text-white" : "bg-card border border-border text-muted-foreground hover:text-white"}`}
+                >
+                  {{ active: "Ativos", archived: "Rebaixados", all: "Todos" }[f]}
+                </button>
+              ))}
+            </div>
           </div>
-          <div className="flex gap-2">
-            {(["active", "archived", "all"] as const).map(f => (
+          {leagues.length > 0 && (
+            <div className="flex items-center gap-2 flex-wrap">
+              <Globe className="w-4 h-4 text-muted-foreground" />
               <button
-                key={f}
-                onClick={() => setFilter(f)}
-                className={`px-4 py-2 rounded-lg text-sm font-bold transition-colors ${filter === f ? "bg-primary text-white" : "bg-card border border-border text-muted-foreground hover:text-white"}`}
+                onClick={() => setLeagueFilter(null)}
+                className={`px-3 py-1 rounded-full text-xs font-bold transition-colors ${leagueFilter === null ? "bg-primary text-white" : "bg-card border border-border text-muted-foreground hover:text-white"}`}
               >
-                {{ active: "Ativos", archived: "Rebaixados", all: "Todos" }[f]}
+                Todas as ligas
               </button>
-            ))}
-          </div>
+              {(leagues as any[]).map((l: any) => (
+                <button
+                  key={l.id}
+                  onClick={() => setLeagueFilter(leagueFilter === l.id ? null : l.id)}
+                  className={`px-3 py-1 rounded-full text-xs font-bold transition-colors ${leagueFilter === l.id ? "bg-primary text-white" : "bg-card border border-border text-muted-foreground hover:text-white"}`}
+                >
+                  {l.name}
+                </button>
+              ))}
+              <button
+                onClick={() => setLeagueFilter(-1)}
+                className={`px-3 py-1 rounded-full text-xs font-bold transition-colors ${leagueFilter === -1 ? "bg-primary text-white" : "bg-card border border-border text-muted-foreground hover:text-white"}`}
+              >
+                Sem liga
+              </button>
+            </div>
+          )}
         </div>
 
         {isLoading ? (

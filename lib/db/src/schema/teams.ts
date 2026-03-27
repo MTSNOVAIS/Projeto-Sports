@@ -16,6 +16,7 @@ export const teamsTable = pgTable("teams", {
   secondaryColor: text("secondary_color").notNull().default("#FFFFFF"),
   titles: text("titles").default("[]"),
   sofascoreId: integer("sofascore_id"),
+  leagueId: integer("league_id"),
   archived: boolean("archived").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),

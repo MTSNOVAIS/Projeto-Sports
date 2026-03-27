@@ -8,17 +8,63 @@ import {
   useSofascoreStatistics,
   useSofascoreLineups,
   useSofascoreH2H,
+  teamImageUrl,
 } from "@/hooks/use-sofascore";
 import { motion } from "framer-motion";
 import { ArrowLeft, Circle, Users, BarChart2, Clock, Swords, RefreshCw } from "lucide-react";
 
 type Tab = "incidents" | "statistics" | "lineups" | "h2h";
 
+const STAT_LABELS: Record<string, string> = {
+  "Ball possession": "Posse de bola",
+  "Expected goals": "Gols esperados (xG)",
+  "Total shots": "Chutes totais",
+  "Shots on target": "Chutes no gol",
+  "Shots off target": "Chutes para fora",
+  "Blocked shots": "Chutes bloqueados",
+  "Corner kicks": "Escanteios",
+  "Offsides": "Impedimentos",
+  "Fouls": "Faltas",
+  "Yellow cards": "Cartões amarelos",
+  "Red cards": "Cartões vermelhos",
+  "Passes": "Passes",
+  "Accurate passes": "Passes certos",
+  "Tackles": "Desarmes",
+  "Free kicks": "Cobranças de falta",
+  "Goalkeeper saves": "Defesas do goleiro",
+  "Big chances": "Grandes chances",
+  "Big chances missed": "Grandes chances perdidas",
+  "Big chances scored": "Grandes chances convertidas",
+  "Attacks": "Ataques",
+  "Dangerous attacks": "Ataques perigosos",
+  "Clearances": "Cortes",
+  "Throw-ins": "Laterais",
+  "Final third entries": "Entradas no terço final",
+  "Long balls": "Bolas longas",
+  "Crosses": "Cruzamentos",
+  "Dribbles": "Dribles",
+  "Duels": "Duelos",
+  "Duels won": "Duelos vencidos",
+  "Aerials won": "Duelos aéreos vencidos",
+  "Interceptions": "Interceptações",
+};
+
+const STAT_GROUP_LABELS: Record<string, string> = {
+  "Match overview": "Visão geral",
+  "Shots": "Chutes",
+  "Passing": "Passes",
+  "Defence": "Defesa",
+  "Duels": "Duelos",
+  "Attacking": "Ataque",
+};
+
 function statusLabel(type: string, description: string): { label: string; color: string } {
   switch (type) {
     case "inprogress": return { label: description || "Ao Vivo", color: "text-green-400" };
     case "finished": return { label: "Encerrado", color: "text-muted-foreground" };
     case "notstarted": return { label: "Não iniciado", color: "text-blue-400" };
+    case "postponed": return { label: "Adiado", color: "text-yellow-500" };
+    case "canceled": return { label: "Cancelado", color: "text-red-500" };
     default: return { label: description || type, color: "text-muted-foreground" };
   }
 }
@@ -31,6 +77,21 @@ function incidentIcon(type: string, incidentClass?: string) {
   if (type === "missedPenalty") return "❌";
   if (type === "varDecision") return "📺 VAR";
   return "•";
+}
+
+function incidentLabel(type: string, incidentClass?: string): string {
+  if (type === "goal") {
+    if (incidentClass === "ownGoal") return "Gol contra";
+    if (incidentClass === "penalty") return "Gol (pênalti)";
+    return "Gol";
+  }
+  if (type === "card") return incidentClass === "red" ? "Cartão vermelho" : "Cartão amarelo";
+  if (type === "substitution") return "Substituição";
+  if (type === "missedPenalty") return "Pênalti perdido";
+  if (type === "varDecision") return "Revisão VAR";
+  if (type === "injuryTime") return "Acréscimos";
+  if (type === "period") return "Período";
+  return type;
 }
 
 function IncidentsTab({ id }: { id: string }) {
@@ -51,7 +112,12 @@ function IncidentsTab({ id }: { id: string }) {
     return <p className="text-muted-foreground text-center py-10">Nenhum lance registrado ainda.</p>;
   }
 
-  const sorted = [...incidents].sort((a, b) => (b.time || 0) - (a.time || 0));
+  const mainIncidents = incidents.filter(inc =>
+    ["goal", "card", "substitution", "missedPenalty", "varDecision"].includes(inc.incidentType)
+  );
+  const sorted = (mainIncidents.length > 0 ? mainIncidents : incidents)
+    .slice()
+    .sort((a, b) => (b.time || 0) - (a.time || 0));
 
   return (
     <div>
@@ -67,6 +133,9 @@ function IncidentsTab({ id }: { id: string }) {
           const minute = inc.time ? `${inc.time}${inc.addedTime ? `+${inc.addedTime}` : ""}'` : "";
           const playerName = inc.player?.name || inc.playerName || "";
           const assistName = inc.assist1?.name || "";
+          const subPlayerIn = inc.playerIn?.name || "";
+          const subPlayerOut = inc.playerOut?.name || inc.player?.name || "";
+          const isSubstitution = inc.incidentType === "substitution";
 
           return (
             <motion.div
@@ -76,10 +145,19 @@ function IncidentsTab({ id }: { id: string }) {
               transition={{ delay: i * 0.03 }}
               className={`flex items-center gap-3 px-4 py-2.5 rounded-lg hover:bg-white/5 transition-colors ${isHome ? "flex-row" : "flex-row-reverse"}`}
             >
-              <span className="text-xl w-8 text-center">{icon}</span>
+              <span className="text-xl w-8 text-center shrink-0">{icon}</span>
               <div className={`flex-1 ${isHome ? "text-left" : "text-right"}`}>
-                <p className="font-bold text-sm text-white">{playerName}</p>
-                {assistName && <p className="text-xs text-muted-foreground">Assist: {assistName}</p>}
+                {isSubstitution ? (
+                  <>
+                    <p className="text-xs text-green-400 font-bold">▲ {subPlayerIn}</p>
+                    <p className="text-xs text-red-400">▼ {subPlayerOut}</p>
+                  </>
+                ) : (
+                  <>
+                    <p className="font-bold text-sm text-white">{playerName}</p>
+                    {assistName && <p className="text-xs text-muted-foreground">Assistência: {assistName}</p>}
+                  </>
+                )}
               </div>
               <span className="text-xs font-black text-primary bg-primary/10 px-2 py-0.5 rounded min-w-[42px] text-center">{minute}</span>
             </motion.div>
@@ -92,11 +170,12 @@ function IncidentsTab({ id }: { id: string }) {
 
 function StatBar({ label, home, away }: { label: string; home: number; away: number }) {
   const total = home + away || 1;
+  const ptLabel = STAT_LABELS[label] || label;
   return (
     <div className="mb-4">
       <div className="flex justify-between text-xs text-muted-foreground mb-1">
         <span className="font-bold text-white">{home}</span>
-        <span>{label}</span>
+        <span>{ptLabel}</span>
         <span className="font-bold text-white">{away}</span>
       </div>
       <div className="h-2 bg-white/10 rounded-full overflow-hidden flex">
@@ -118,7 +197,9 @@ function StatisticsTab({ id }: { id: string }) {
     <div>
       {groups.map((group: any) => (
         <div key={group.groupName} className="mb-6">
-          <h3 className="text-xs font-black uppercase tracking-widest text-muted-foreground mb-3 border-b border-border pb-2">{group.groupName}</h3>
+          <h3 className="text-xs font-black uppercase tracking-widest text-muted-foreground mb-3 border-b border-border pb-2">
+            {STAT_GROUP_LABELS[group.groupName] || group.groupName}
+          </h3>
           {(group.statisticsItems || []).map((item: any) => (
             <StatBar key={item.name} label={item.name} home={Number(item.home) || 0} away={Number(item.away) || 0} />
           ))}
@@ -152,7 +233,7 @@ function LineupsTab({ id }: { id: string }) {
   return (
     <div className="grid grid-cols-2 gap-6">
       <div>
-        <h3 className="font-display font-black text-sm uppercase mb-3 text-primary">Titular</h3>
+        <h3 className="font-display font-black text-sm uppercase mb-3 text-primary">Titulares</h3>
         {(home.players || []).filter((p: any) => p.substitute === false).map((p: any) => (
           <PlayerCard key={p.player?.id || p.name} player={p} isStarting />
         ))}
@@ -162,7 +243,7 @@ function LineupsTab({ id }: { id: string }) {
         ))}
       </div>
       <div>
-        <h3 className="font-display font-black text-sm uppercase mb-3 text-blue-400">Titular</h3>
+        <h3 className="font-display font-black text-sm uppercase mb-3 text-blue-400">Titulares</h3>
         {(away.players || []).filter((p: any) => p.substitute === false).map((p: any) => (
           <PlayerCard key={p.player?.id || p.name} player={p} isStarting />
         ))}
@@ -193,13 +274,13 @@ function H2HTab({ id }: { id: string }) {
             <div className="flex items-center gap-3 p-3 rounded-lg hover:bg-white/5 transition-colors cursor-pointer">
               <span className="text-xs text-muted-foreground w-20 flex-shrink-0">{d.toLocaleDateString("pt-BR")}</span>
               <div className="flex-1 flex items-center gap-2">
-                <img src={`https://api.sofascore.com/api/v1/team/${e.homeTeam.id}/image`} alt="" className="w-5 h-5 object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                <img src={teamImageUrl(e.homeTeam.id)} alt="" className="w-5 h-5 object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
                 <span className="text-sm font-bold text-white flex-1 text-right">{e.homeTeam.shortName || e.homeTeam.name}</span>
               </div>
               <span className="font-display font-black text-sm text-white bg-white/10 px-3 py-1 rounded">{home}–{away}</span>
               <div className="flex-1 flex items-center gap-2">
                 <span className="text-sm font-bold text-muted-foreground flex-1">{e.awayTeam.shortName || e.awayTeam.name}</span>
-                <img src={`https://api.sofascore.com/api/v1/team/${e.awayTeam.id}/image`} alt="" className="w-5 h-5 object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                <img src={teamImageUrl(e.awayTeam.id)} alt="" className="w-5 h-5 object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
               </div>
             </div>
           </Link>
@@ -216,7 +297,7 @@ export default function MatchPage() {
   const event = data?.event;
 
   const tabs: { key: Tab; label: string; icon: React.ReactNode }[] = [
-    { key: "incidents", label: "Minuto a Minuto", icon: <Clock className="w-4 h-4" /> },
+    { key: "incidents", label: "Lance a Lance", icon: <Clock className="w-4 h-4" /> },
     { key: "statistics", label: "Estatísticas", icon: <BarChart2 className="w-4 h-4" /> },
     { key: "lineups", label: "Escalações", icon: <Users className="w-4 h-4" /> },
     { key: "h2h", label: "Confrontos", icon: <Swords className="w-4 h-4" /> },
@@ -237,7 +318,6 @@ export default function MatchPage() {
           </div>
         ) : (
           <>
-            {/* Match Hero */}
             <div className="bg-card border-b border-border">
               <div className="container mx-auto px-4 py-6 max-w-4xl">
                 <Link href="/resultados" className="flex items-center gap-2 text-muted-foreground hover:text-white text-sm mb-6 transition-colors w-fit">
@@ -262,7 +342,7 @@ export default function MatchPage() {
                       <div className="flex items-center gap-6 sm:gap-12 w-full max-w-lg">
                         <div className="flex-1 flex flex-col items-center gap-2">
                           <img
-                            src={`https://api.sofascore.com/api/v1/team/${event.homeTeam.id}/image`}
+                            src={teamImageUrl(event.homeTeam.id)}
                             alt={event.homeTeam.name}
                             className="w-16 h-16 object-contain"
                             onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
@@ -292,7 +372,7 @@ export default function MatchPage() {
 
                         <div className="flex-1 flex flex-col items-center gap-2">
                           <img
-                            src={`https://api.sofascore.com/api/v1/team/${event.awayTeam.id}/image`}
+                            src={teamImageUrl(event.awayTeam.id)}
                             alt={event.awayTeam.name}
                             className="w-16 h-16 object-contain"
                             onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
@@ -314,7 +394,6 @@ export default function MatchPage() {
               </div>
             </div>
 
-            {/* Tabs */}
             <div className="container mx-auto px-4 max-w-4xl">
               <div className="flex border-b border-border overflow-x-auto">
                 {tabs.map((t) => (
