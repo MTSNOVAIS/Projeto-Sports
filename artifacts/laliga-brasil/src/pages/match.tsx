@@ -9,6 +9,7 @@ import {
   useSofascoreLineups,
   useSofascoreH2H,
   teamImageUrl,
+  playerImageUrl,
 } from "@/hooks/use-sofascore";
 import { motion } from "framer-motion";
 import { ArrowLeft, Circle, Users, BarChart2, Clock, Swords, RefreshCw } from "lucide-react";
@@ -209,49 +210,138 @@ function StatisticsTab({ id }: { id: string }) {
   );
 }
 
-function PlayerCard({ player, isStarting }: { player: any; isStarting: boolean }) {
+const POSITION_PT: Record<string, string> = {
+  G: "Goleiro", D: "Defensor", M: "Meio-campo", F: "Atacante",
+  GK: "Goleiro", DF: "Defensor", MF: "Meio-campo", FW: "Atacante",
+};
+
+function PlayerRow({ player, side }: { player: any; side: "home" | "away" }) {
+  const name = player.player?.name || player.name || "—";
+  const short = name.split(" ").slice(-1)[0];
+  const pid = player.player?.id;
+  const pos = player.player?.position || "";
+  const isHome = side === "home";
+
   return (
-    <div className="flex items-center gap-2 py-1.5 border-b border-border/30 last:border-0">
-      <span className="text-xs font-black text-muted-foreground w-6 text-center">{player.jerseyNumber}</span>
-      <div className="flex-1">
-        <p className="text-sm font-bold text-white">{player.player?.name || player.name}</p>
-        <p className="text-xs text-muted-foreground">{player.player?.position || ""}</p>
+    <motion.div
+      initial={{ opacity: 0, x: isHome ? -8 : 8 }}
+      animate={{ opacity: 1, x: 0 }}
+      className={`flex items-center gap-2.5 py-2 border-b border-border/20 last:border-0 ${isHome ? "flex-row" : "flex-row-reverse"}`}
+    >
+      <div className="relative flex-shrink-0">
+        <div className={`w-9 h-9 rounded-full overflow-hidden border-2 ${isHome ? "border-primary/40" : "border-blue-500/40"} bg-white/5`}>
+          {pid ? (
+            <img
+              src={playerImageUrl(pid)}
+              alt={short}
+              className="w-full h-full object-cover"
+              onError={e => {
+                const el = e.currentTarget;
+                el.style.display = "none";
+                const sib = el.nextElementSibling as HTMLElement;
+                if (sib) sib.style.display = "flex";
+              }}
+            />
+          ) : null}
+          <div
+            className={`w-full h-full items-center justify-center text-xs font-black ${isHome ? "text-primary" : "text-blue-400"}`}
+            style={{ display: pid ? "none" : "flex" }}
+          >
+            {player.jerseyNumber || "?"}
+          </div>
+        </div>
+        <span className={`absolute -bottom-1 -right-1 text-[9px] font-black px-1 rounded-sm ${isHome ? "bg-primary text-white" : "bg-blue-600 text-white"}`}>
+          {player.jerseyNumber}
+        </span>
       </div>
-      {!isStarting && <span className="text-xs text-yellow-500 font-bold bg-yellow-500/10 px-1.5 py-0.5 rounded">Res.</span>}
-    </div>
+
+      <div className={`flex-1 min-w-0 ${isHome ? "text-left" : "text-right"}`}>
+        <p className="text-sm font-bold text-white leading-tight truncate">{short}</p>
+        <p className="text-[10px] text-muted-foreground leading-tight">{POSITION_PT[pos] || pos}</p>
+      </div>
+    </motion.div>
   );
 }
 
 function LineupsTab({ id }: { id: string }) {
   const { data, isLoading } = useSofascoreLineups(id);
 
-  if (isLoading) return <div className="animate-pulse space-y-3">{Array.from({ length: 8 }).map((_, i) => <div key={i} className="h-8 bg-white/5 rounded" />)}</div>;
-  if (!data?.home) return <p className="text-muted-foreground text-center py-10">Escalações ainda não disponíveis.</p>;
+  if (isLoading) {
+    return (
+      <div className="space-y-2 animate-pulse">
+        {Array.from({ length: 11 }).map((_, i) => (
+          <div key={i} className="h-12 bg-white/5 rounded-xl" />
+        ))}
+      </div>
+    );
+  }
+  if (!data?.home) {
+    return <p className="text-muted-foreground text-center py-10">Escalações ainda não disponíveis.</p>;
+  }
 
   const { home, away } = data;
+  const homeStarters = (home.players || []).filter((p: any) => p.substitute === false);
+  const awayStarters = (away.players || []).filter((p: any) => p.substitute === false);
+  const homeSubs = (home.players || []).filter((p: any) => p.substitute === true);
+  const awaySubs = (away.players || []).filter((p: any) => p.substitute === true);
 
   return (
-    <div className="grid grid-cols-2 gap-6">
-      <div>
-        <h3 className="font-display font-black text-sm uppercase mb-3 text-primary">Titulares</h3>
-        {(home.players || []).filter((p: any) => p.substitute === false).map((p: any) => (
-          <PlayerCard key={p.player?.id || p.name} player={p} isStarting />
-        ))}
-        <h3 className="font-display font-black text-sm uppercase mt-4 mb-3 text-muted-foreground">Reservas</h3>
-        {(home.players || []).filter((p: any) => p.substitute === true).map((p: any) => (
-          <PlayerCard key={p.player?.id || p.name} player={p} isStarting={false} />
-        ))}
+    <div className="space-y-8">
+      {/* Formation header */}
+      <div className="grid grid-cols-2 gap-4 text-center">
+        <div className="bg-primary/5 border border-primary/20 rounded-xl py-3 px-4">
+          <p className="text-xs text-muted-foreground uppercase tracking-widest font-bold mb-1">Mandante</p>
+          {home.formation && (
+            <p className="text-2xl font-black text-primary">{home.formation}</p>
+          )}
+        </div>
+        <div className="bg-blue-500/5 border border-blue-500/20 rounded-xl py-3 px-4">
+          <p className="text-xs text-muted-foreground uppercase tracking-widest font-bold mb-1">Visitante</p>
+          {away.formation && (
+            <p className="text-2xl font-black text-blue-400">{away.formation}</p>
+          )}
+        </div>
       </div>
+
+      {/* Starters */}
       <div>
-        <h3 className="font-display font-black text-sm uppercase mb-3 text-blue-400">Titulares</h3>
-        {(away.players || []).filter((p: any) => p.substitute === false).map((p: any) => (
-          <PlayerCard key={p.player?.id || p.name} player={p} isStarting />
-        ))}
-        <h3 className="font-display font-black text-sm uppercase mt-4 mb-3 text-muted-foreground">Reservas</h3>
-        {(away.players || []).filter((p: any) => p.substitute === true).map((p: any) => (
-          <PlayerCard key={p.player?.id || p.name} player={p} isStarting={false} />
-        ))}
+        <p className="text-xs font-black uppercase tracking-widest text-muted-foreground mb-3 flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-primary inline-block" /> Titulares
+        </p>
+        <div className="grid grid-cols-2 gap-x-6">
+          <div>
+            {homeStarters.map((p: any) => (
+              <PlayerRow key={p.player?.id || p.jerseyNumber} player={p} side="home" />
+            ))}
+          </div>
+          <div>
+            {awayStarters.map((p: any) => (
+              <PlayerRow key={p.player?.id || p.jerseyNumber} player={p} side="away" />
+            ))}
+          </div>
+        </div>
       </div>
+
+      {/* Substitutes */}
+      {(homeSubs.length > 0 || awaySubs.length > 0) && (
+        <div>
+          <p className="text-xs font-black uppercase tracking-widest text-muted-foreground mb-3 flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-yellow-500 inline-block" /> Reservas
+          </p>
+          <div className="grid grid-cols-2 gap-x-6">
+            <div>
+              {homeSubs.map((p: any) => (
+                <PlayerRow key={p.player?.id || p.jerseyNumber} player={p} side="home" />
+              ))}
+            </div>
+            <div>
+              {awaySubs.map((p: any) => (
+                <PlayerRow key={p.player?.id || p.jerseyNumber} player={p} side="away" />
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

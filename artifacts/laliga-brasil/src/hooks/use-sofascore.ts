@@ -13,6 +13,11 @@ export function teamImageUrl(teamId: number | string | undefined): string {
   return `${BASE}/api/sofascore/team-image/${teamId}`;
 }
 
+export function playerImageUrl(playerId: number | string | undefined): string {
+  if (!playerId) return "";
+  return `${BASE}/api/sofascore/player-image/${playerId}`;
+}
+
 export function tournamentImageUrl(tournamentId: number | string | undefined): string {
   if (!tournamentId) return "";
   return `${BASE}/api/sofascore/tournament-image/${tournamentId}`;

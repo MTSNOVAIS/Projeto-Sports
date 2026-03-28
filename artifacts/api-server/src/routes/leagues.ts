@@ -77,6 +77,24 @@ router.put("/admin/leagues/:id", async (req, res): Promise<void> => {
   }
 });
 
+router.patch("/admin/leagues/:id", async (req, res): Promise<void> => {
+  try {
+    const id = Number(req.params.id);
+    const updates: Record<string, any> = {};
+    if (req.body.currentSeasonId !== undefined) updates.currentSeasonId = req.body.currentSeasonId ? Number(req.body.currentSeasonId) : null;
+    if (req.body.name !== undefined) updates.name = req.body.name;
+    if (req.body.slug !== undefined) updates.slug = req.body.slug;
+    if (req.body.country !== undefined) updates.country = req.body.country;
+    if (req.body.logoUrl !== undefined) updates.logoUrl = req.body.logoUrl;
+    if (req.body.sofascoreId !== undefined) updates.sofascoreId = req.body.sofascoreId ? Number(req.body.sofascoreId) : null;
+    const [updated] = await db.update(leaguesTable).set(updates).where(eq(leaguesTable.id, id)).returning();
+    if (!updated) { res.status(404).json({ error: "League not found" }); return; }
+    res.json(updated);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 router.delete("/admin/leagues/:id", async (req, res): Promise<void> => {
   try {
     const id = Number(req.params.id);

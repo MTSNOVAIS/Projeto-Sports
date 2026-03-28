@@ -3,9 +3,10 @@ import { Link } from "wouter";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { useMatches } from "@/hooks/use-matches";
-import { useSofascoreEvent, useSofascoreLaLigaSeasons, useSofascoreLaLigaLastEvents, useSofascoreLaLigaNextEvents, teamImageUrl } from "@/hooks/use-sofascore";
+import { useLeagues } from "@/hooks/use-leagues";
+import { useSofascoreEvent, useSofascoreTournamentLastEvents, useSofascoreTournamentNextEvents, useSofascoreTournamentSeasons, teamImageUrl, tournamentImageUrl } from "@/hooks/use-sofascore";
 import { motion } from "framer-motion";
-import { Calendar, Clock, ChevronRight, Trophy, Circle } from "lucide-react";
+import { Calendar, Clock, ChevronRight, Trophy, Circle, Trophy as TrophyIcon } from "lucide-react";
 
 function statusLabel(type: string, description: string): { label: string; color: string } {
   switch (type) {
@@ -16,11 +17,6 @@ function statusLabel(type: string, description: string): { label: string; color:
     case "canceled": return { label: "Cancelado", color: "text-red-500" };
     default: return { label: description || type, color: "text-muted-foreground" };
   }
-}
-
-function formatMatchDate(timestamp: number) {
-  const d = new Date(timestamp * 1000);
-  return d.toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "short" });
 }
 
 function formatMatchTime(timestamp: number) {
@@ -63,15 +59,13 @@ function MatchCard({ sofascoreId }: { sofascoreId: number }) {
       >
         <div className="flex items-center justify-between mb-3">
           <span className="text-xs text-muted-foreground uppercase tracking-widest font-bold">
-            {event.tournament?.name || "La Liga"}
+            {event.tournament?.name || ""}
           </span>
           <div className="flex items-center gap-2">
             {isLive && <Circle className="w-2 h-2 text-green-400 fill-green-400 animate-pulse" />}
             <span className={`text-xs font-bold uppercase ${status.color}`}>{status.label}</span>
-            {isLive && event.time?.injuryTime1 ? (
+            {isLive && event.time?.played ? (
               <span className="text-xs text-green-400 font-bold">{event.time.played + (event.time.injuryTime1 || 0)}'</span>
-            ) : isLive && event.time?.played ? (
-              <span className="text-xs text-green-400 font-bold">{event.time.played}'</span>
             ) : null}
           </div>
         </div>
@@ -81,38 +75,22 @@ function MatchCard({ sofascoreId }: { sofascoreId: number }) {
             <span className={`font-display font-black text-right text-base ${isFinished && homeScore > awayScore ? "text-white" : "text-muted-foreground"}`}>
               {event.homeTeam.name}
             </span>
-            {event.homeTeam.id && (
-              <img
-                src={teamImageUrl(event.homeTeam.id)}
-                alt={event.homeTeam.name}
-                className="w-8 h-8 object-contain"
-                onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-              />
-            )}
+            <img src={teamImageUrl(event.homeTeam.id)} alt={event.homeTeam.name} className="w-8 h-8 object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
           </div>
 
           <div className="flex items-center gap-2 min-w-[80px] justify-center">
             {homeScore !== null && awayScore !== null ? (
-              <span className="font-display font-black text-2xl text-white">
-                {homeScore} – {awayScore}
-              </span>
+              <span className="font-display font-black text-2xl text-white">{homeScore} – {awayScore}</span>
             ) : (
               <div className="text-center">
-                <div className="text-xs text-muted-foreground font-bold">{formatMatchDate(event.startTimestamp)}</div>
+                <div className="text-xs text-muted-foreground font-bold">{new Date(event.startTimestamp * 1000).toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "short" })}</div>
                 <div className="text-sm font-black text-white">{formatMatchTime(event.startTimestamp)}</div>
               </div>
             )}
           </div>
 
           <div className="flex-1 flex items-center gap-3">
-            {event.awayTeam.id && (
-              <img
-                src={teamImageUrl(event.awayTeam.id)}
-                alt={event.awayTeam.name}
-                className="w-8 h-8 object-contain"
-                onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-              />
-            )}
+            <img src={teamImageUrl(event.awayTeam.id)} alt={event.awayTeam.name} className="w-8 h-8 object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
             <span className={`font-display font-black text-left text-base ${isFinished && awayScore > homeScore ? "text-white" : "text-muted-foreground"}`}>
               {event.awayTeam.name}
             </span>
@@ -125,13 +103,14 @@ function MatchCard({ sofascoreId }: { sofascoreId: number }) {
   );
 }
 
-function LaLigaRoundsSection() {
-  const [tab, setTab] = useState<"next" | "last">("last");
-  const { data: seasonsData } = useSofascoreLaLigaSeasons();
-  const seasonId = seasonsData?.seasons?.[0]?.id;
+function LeagueRoundsSection({ league }: { league: any }) {
+  const [tab, setTab] = useState<"last" | "next">("last");
+  const { data: seasonsData } = useSofascoreTournamentSeasons(league.sofascoreId);
 
-  const { data: lastData, isLoading: loadingLast } = useSofascoreLaLigaLastEvents(seasonId);
-  const { data: nextData, isLoading: loadingNext } = useSofascoreLaLigaNextEvents(seasonId);
+  const seasonId = league.currentSeasonId || seasonsData?.seasons?.[0]?.id;
+
+  const { data: lastData, isLoading: loadingLast } = useSofascoreTournamentLastEvents(league.sofascoreId, seasonId);
+  const { data: nextData, isLoading: loadingNext } = useSofascoreTournamentNextEvents(league.sofascoreId, seasonId);
 
   const events: any[] = tab === "last"
     ? (lastData?.events || []).slice().reverse().slice(0, 10)
@@ -140,10 +119,15 @@ function LaLigaRoundsSection() {
   const isLoading = tab === "last" ? loadingLast : loadingNext;
 
   return (
-    <div>
-      <div className="flex items-center gap-3 mb-6">
-        <Trophy className="w-5 h-5 text-primary" />
-        <h2 className="font-display text-xl text-white">La Liga — Rodadas</h2>
+    <div className="mb-12">
+      <div className="flex items-center gap-3 mb-5">
+        <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center overflow-hidden flex-shrink-0">
+          <img src={tournamentImageUrl(league.sofascoreId)} alt="" className="w-6 h-6 object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+        </div>
+        <div>
+          <h2 className="font-display text-xl text-white font-black">{league.name}</h2>
+          {league.country && <p className="text-xs text-muted-foreground">{league.country}</p>}
+        </div>
         <div className="ml-auto flex bg-card border border-border rounded-lg overflow-hidden">
           <button
             onClick={() => setTab("last")}
@@ -160,7 +144,11 @@ function LaLigaRoundsSection() {
         </div>
       </div>
 
-      {isLoading ? (
+      {!league.sofascoreId ? (
+        <p className="text-sm text-muted-foreground text-center py-6">Liga sem ID do Sofascore configurado.</p>
+      ) : !seasonId && !isLoading ? (
+        <p className="text-sm text-muted-foreground text-center py-6">Configure a temporada ativa no painel de Ligas.</p>
+      ) : isLoading ? (
         <div className="space-y-3">
           {Array.from({ length: 5 }).map((_, i) => (
             <div key={i} className="bg-card border border-border rounded-xl p-4 animate-pulse">
@@ -173,8 +161,10 @@ function LaLigaRoundsSection() {
             </div>
           ))}
         </div>
+      ) : events.length === 0 ? (
+        <p className="text-sm text-muted-foreground text-center py-6">Nenhuma partida encontrada.</p>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-2">
           {events.map((event: any) => {
             const status = statusLabel(event.status.type, event.status.description);
             const isLive = event.status.type === "inprogress";
@@ -187,11 +177,13 @@ function LaLigaRoundsSection() {
                 <motion.div
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
-                  whileHover={{ scale: 1.01 }}
+                  whileHover={{ scale: 1.005 }}
                   className="bg-card border border-border rounded-xl p-4 cursor-pointer hover:border-primary/30 transition-all group"
                 >
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs text-muted-foreground font-bold">Rodada {event.roundInfo?.round}</span>
+                    <span className="text-xs text-muted-foreground font-bold">
+                      {event.roundInfo?.round ? `Rodada ${event.roundInfo.round}` : new Date(event.startTimestamp * 1000).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}
+                    </span>
                     <div className="flex items-center gap-2">
                       {isLive && <Circle className="w-2 h-2 text-green-400 fill-green-400 animate-pulse" />}
                       <span className={`text-xs font-bold uppercase ${status.color}`}>{status.label}</span>
@@ -199,12 +191,12 @@ function LaLigaRoundsSection() {
                   </div>
                   <div className="flex items-center gap-2">
                     <div className="flex-1 flex items-center justify-end gap-2">
-                      <span className={`font-bold text-sm text-right ${isFinished && homeScore > awayScore ? "text-white" : "text-muted-foreground"}`}>
+                      <span className={`font-bold text-sm text-right truncate ${isFinished && homeScore > awayScore ? "text-white" : "text-muted-foreground"}`}>
                         {event.homeTeam.name}
                       </span>
-                      <img src={teamImageUrl(event.homeTeam.id)} alt="" className="w-6 h-6 object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                      <img src={teamImageUrl(event.homeTeam.id)} alt="" className="w-6 h-6 object-contain flex-shrink-0" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
                     </div>
-                    <div className="min-w-[60px] text-center">
+                    <div className="min-w-[64px] text-center flex-shrink-0">
                       {homeScore !== null ? (
                         <span className="font-display font-black text-lg text-white">{homeScore}–{awayScore}</span>
                       ) : (
@@ -212,12 +204,12 @@ function LaLigaRoundsSection() {
                       )}
                     </div>
                     <div className="flex-1 flex items-center gap-2">
-                      <img src={teamImageUrl(event.awayTeam.id)} alt="" className="w-6 h-6 object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
-                      <span className={`font-bold text-sm ${isFinished && awayScore > homeScore ? "text-white" : "text-muted-foreground"}`}>
+                      <img src={teamImageUrl(event.awayTeam.id)} alt="" className="w-6 h-6 object-contain flex-shrink-0" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                      <span className={`font-bold text-sm truncate ${isFinished && awayScore > homeScore ? "text-white" : "text-muted-foreground"}`}>
                         {event.awayTeam.name}
                       </span>
                     </div>
-                    <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                    <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors flex-shrink-0" />
                   </div>
                 </motion.div>
               </Link>
@@ -231,6 +223,9 @@ function LaLigaRoundsSection() {
 
 export default function ResultsPage() {
   const { data: pinnedMatches = [], isLoading: loadingPinned } = useMatches();
+  const { data: leagues = [], isLoading: loadingLeagues } = useLeagues();
+
+  const activeLeagues = (leagues as any[]).filter((l: any) => l.sofascoreId);
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -243,24 +238,48 @@ export default function ResultsPage() {
               <Calendar className="w-6 h-6 text-primary" />
               <h1 className="font-display text-3xl font-black">Resultados</h1>
             </div>
-            <p className="text-muted-foreground">Partidas em destaque e rodadas da La Liga</p>
+            <p className="text-muted-foreground">Partidas em destaque e rodadas por competição</p>
           </div>
 
-          {pinnedMatches.length > 0 && (
+          {/* Pinned / featured matches */}
+          {(loadingPinned ? true : pinnedMatches.length > 0) && (
             <section className="mb-10">
               <div className="flex items-center gap-2 mb-4">
                 <Clock className="w-4 h-4 text-primary" />
                 <h2 className="font-display text-lg text-white font-bold">Em Destaque</h2>
               </div>
-              <div className="space-y-3">
-                {pinnedMatches.map((m: any) => (
-                  <MatchCard key={m.id} sofascoreId={m.sofascoreId} />
-                ))}
-              </div>
+              {loadingPinned ? (
+                <div className="space-y-3">
+                  {Array.from({ length: 2 }).map((_, i) => (
+                    <div key={i} className="bg-card border border-border rounded-xl p-4 animate-pulse h-20" />
+                  ))}
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {pinnedMatches.map((m: any) => (
+                    <MatchCard key={m.id} sofascoreId={m.sofascoreId} />
+                  ))}
+                </div>
+              )}
             </section>
           )}
 
-          <LaLigaRoundsSection />
+          {/* Dynamic league sections */}
+          {loadingLeagues ? (
+            <div className="flex justify-center py-10">
+              <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+            </div>
+          ) : activeLeagues.length === 0 ? (
+            <div className="text-center py-16 border border-dashed border-border rounded-2xl text-muted-foreground">
+              <TrophyIcon className="w-12 h-12 mx-auto mb-3 opacity-20" />
+              <p className="font-bold">Nenhuma liga configurada.</p>
+              <p className="text-sm mt-1">Adicione ligas no painel admin para ver os jogos aqui.</p>
+            </div>
+          ) : (
+            activeLeagues.map((league: any) => (
+              <LeagueRoundsSection key={league.id} league={league} />
+            ))
+          )}
 
         </div>
       </main>

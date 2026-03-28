@@ -38,11 +38,14 @@ export function useUpdateLeague() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ id, ...data }: any) => apiFetch<any>(`/api/admin/leagues/${id}`, {
-      method: "PUT",
+      method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
     }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["admin", "leagues"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin", "leagues"] });
+      qc.invalidateQueries({ queryKey: ["leagues"] });
+    },
   });
 }
 
