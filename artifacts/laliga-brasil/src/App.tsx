@@ -19,6 +19,7 @@ import AdminTeamsList from "@/pages/admin/teams-list";
 import AdminTeamEditor from "@/pages/admin/team-editor";
 import AdminUsersList from "@/pages/admin/users-list";
 import AdminRolesList from "@/pages/admin/roles-list";
+import AdminColunistas from "@/pages/admin/colunistas";
 import AdminMatches from "@/pages/admin/matches";
 import AdminHighlights from "@/pages/admin/highlights";
 import AdminLeagues from "@/pages/admin/leagues";
@@ -76,6 +77,11 @@ function Router() {
       <Route path="/dashboard/times/:id">
         <ProtectedRoute>
           <AdminTeamEditor />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/dashboard/colunistas">
+        <ProtectedRoute>
+          <AdminColunistas />
         </ProtectedRoute>
       </Route>
       <Route path="/dashboard/usuarios">

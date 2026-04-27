@@ -109,3 +109,65 @@ export function useSiteAccounts() {
     staleTime: 60_000,
   });
 }
+
+export interface AdminAccount {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  active: boolean;
+  isColumnist: boolean;
+  columnistSlug: string | null;
+  columnistTitle: string | null;
+  bio: string | null;
+  avatarUrl: string | null;
+  twitter: string | null;
+  createdAt?: string;
+}
+
+export function useAdminAccounts() {
+  return useQuery({
+    queryKey: ["/admin/accounts"],
+    queryFn: async (): Promise<AdminAccount[]> => {
+      const res = await fetch(`${BASE}/api/admin/accounts`);
+      if (!res.ok) throw new Error("Falha ao carregar contas");
+      return res.json();
+    },
+    staleTime: 30_000,
+  });
+}
+
+export interface UpdateAccountVars {
+  id: string;
+  isColumnist?: boolean;
+  columnistSlug?: string | null;
+  columnistTitle?: string | null;
+  bio?: string | null;
+  avatarUrl?: string | null;
+  twitter?: string | null;
+  active?: boolean;
+}
+
+export function useUpdateAccount() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (vars: UpdateAccountVars): Promise<AdminAccount> => {
+      const { id, ...body } = vars;
+      const res = await fetch(`${BASE}/api/admin/accounts/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data?.error ?? "Falha ao atualizar conta");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/admin/accounts"] });
+      queryClient.invalidateQueries({ queryKey: ["/users"] });
+      queryClient.invalidateQueries({ queryKey: ["/columnists"] });
+    },
+  });
+}

@@ -21,6 +21,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
     { href: "/dashboard/partidas", label: "Partidas" },
     { href: "/dashboard/ligas", label: "Ligas" },
     { href: "/dashboard/times", label: "Times" },
+    { href: "/dashboard/colunistas", label: "Colunistas" },
     { href: "/dashboard/usuarios", label: "Usuários" },
     { href: "/dashboard/cargos", label: "Cargos" },
   ];
