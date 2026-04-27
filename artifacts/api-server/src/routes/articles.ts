@@ -431,9 +431,76 @@ router.post("/admin/articles/:id/publish", async (req, res): Promise<void> => {
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const id = parseInt(raw, 10);
 
+  const [existing] = await db.select().from(articlesTable).where(eq(articlesTable.id, id));
+  if (!existing) {
+    res.status(404).json({ error: "Article not found" });
+    return;
+  }
+
   const [article] = await db
     .update(articlesTable)
-    .set({ status: "published", publishedAt: new Date(), scheduledAt: null })
+    .set({
+      status: "published",
+      publishedAt: existing.publishedAt ?? new Date(),
+      scheduledAt: null,
+    })
+    .where(eq(articlesTable.id, id))
+    .returning();
+
+  res.json({
+    ...article,
+    teamName: null,
+    teamSlug: null,
+    publishedAt: article.publishedAt?.toISOString() ?? null,
+    scheduledAt: article.scheduledAt?.toISOString() ?? null,
+    createdAt: article.createdAt.toISOString(),
+    updatedAt: article.updatedAt.toISOString(),
+  });
+});
+
+// Lightweight toggle for featured/breakingNews flags.
+// Only updates the highlight flags, doesn't touch any other field.
+router.patch("/admin/articles/:id/highlights", async (req, res): Promise<void> => {
+  const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const id = parseInt(raw, 10);
+
+  const { featured, breakingNews } = req.body ?? {};
+  const updateData: Partial<typeof articlesTable.$inferInsert> = {};
+  if (typeof featured === "boolean") updateData.featured = featured;
+  if (typeof breakingNews === "boolean") updateData.breakingNews = breakingNews;
+
+  if (Object.keys(updateData).length === 0) {
+    res.status(400).json({ error: "featured or breakingNews boolean is required" });
+    return;
+  }
+
+  const [article] = await db
+    .update(articlesTable)
+    .set(updateData)
+    .where(eq(articlesTable.id, id))
+    .returning();
+
+  if (!article) {
+    res.status(404).json({ error: "Article not found" });
+    return;
+  }
+
+  res.json({
+    id: article.id,
+    featured: article.featured,
+    breakingNews: article.breakingNews,
+    updatedAt: article.updatedAt.toISOString(),
+  });
+});
+
+// Revert a published or scheduled article back to draft.
+router.post("/admin/articles/:id/unpublish", async (req, res): Promise<void> => {
+  const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const id = parseInt(raw, 10);
+
+  const [article] = await db
+    .update(articlesTable)
+    .set({ status: "draft", scheduledAt: null })
     .where(eq(articlesTable.id, id))
     .returning();
 
