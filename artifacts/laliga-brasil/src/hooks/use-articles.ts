@@ -1,4 +1,4 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   useListArticles,
   useGetArticle,
@@ -84,5 +84,28 @@ export function useUnpublishArticle() {
       queryClient.invalidateQueries({ queryKey: ["/articles"] });
       queryClient.invalidateQueries({ queryKey: ["/admin/articles"] });
     },
+  });
+}
+
+export interface SiteAccount {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+}
+
+/**
+ * Returns the list of accounts registered on the site (used as
+ * selectable co-authors in the article editor).
+ */
+export function useSiteAccounts() {
+  return useQuery({
+    queryKey: ["/users"],
+    queryFn: async (): Promise<SiteAccount[]> => {
+      const res = await fetch(`${BASE}/api/users`);
+      if (!res.ok) throw new Error("Falha ao carregar contas");
+      return res.json();
+    },
+    staleTime: 60_000,
   });
 }

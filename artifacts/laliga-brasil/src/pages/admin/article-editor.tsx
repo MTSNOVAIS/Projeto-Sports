@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { useLocation, useRoute } from "wouter";
 import {
   useAdminGetArticle,
@@ -7,10 +7,11 @@ import {
   usePublishArticle,
   useScheduleArticle,
   useUnpublishArticle,
+  useSiteAccounts,
+  type SiteAccount,
 } from "@/hooks/use-articles";
-import { useListTeams, useListCategories } from "@/hooks/use-system";
+import { useListTeams } from "@/hooks/use-system";
 import { useAuth } from "@/contexts/AuthContext";
-import { CustomDateTimePicker } from "@/components/ui/custom-datetime-picker";
 import { RichTextEditor } from "@/components/ui/rich-text-editor";
 import {
   ArrowLeft,
@@ -20,12 +21,20 @@ import {
   Users,
   FileText,
   Eye,
-  CheckCircle2,
   AlertTriangle,
   CalendarClock,
   Undo2,
   Loader2,
   ChevronDown,
+  Settings,
+  Star,
+  Zap,
+  X,
+  Plus,
+  Check,
+  Tag,
+  Shield,
+  UserPlus,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -36,36 +45,30 @@ import { AdminLayout } from "@/components/layout/AdminLayout";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
+const CATEGORIES = [
+  "La Liga",
+  "Transferências",
+  "Resultados",
+  "Análise",
+  "Entrevista",
+  "Internacional",
+];
+
 const STATUS_BADGE: Record<
   string,
   { label: string; className: string; emoji: string }
 > = {
-  draft: {
-    label: "Rascunho",
-    className: "bg-zinc-500/15 text-zinc-300 border-zinc-500/30",
-    emoji: "📝",
-  },
-  published: {
-    label: "Publicado",
-    className: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30",
-    emoji: "🟢",
-  },
-  scheduled: {
-    label: "Agendado",
-    className: "bg-sky-500/15 text-sky-300 border-sky-500/30",
-    emoji: "⏱️",
-  },
+  draft:     { label: "Rascunho",  className: "bg-zinc-500/15 text-zinc-300 border-zinc-500/30",       emoji: "📝" },
+  published: { label: "Publicado", className: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30", emoji: "🟢" },
+  scheduled: { label: "Agendado",  className: "bg-sky-500/15 text-sky-300 border-sky-500/30",          emoji: "⏱️" },
 };
 
 function formatDate(iso?: string | null): string {
   if (!iso) return "—";
   try {
     return new Intl.DateTimeFormat("pt-BR", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
+      day: "2-digit", month: "short", year: "numeric",
+      hour: "2-digit", minute: "2-digit",
       timeZone: "America/Sao_Paulo",
     }).format(new Date(iso));
   } catch {
@@ -73,14 +76,505 @@ function formatDate(iso?: string | null): string {
   }
 }
 
+// =================== Custom UI primitives ===================
+
+function useClickOutside(ref: React.RefObject<HTMLElement | null>, onOutside: () => void) {
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) onOutside();
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [ref, onOutside]);
+}
+
+interface SelectOption { value: string; label: string; icon?: React.ReactNode }
+function CustomSelect({
+  value, options, onChange, placeholder = "Selecionar...",
+}: {
+  value: string;
+  options: SelectOption[];
+  onChange: (v: string) => void;
+  placeholder?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useClickOutside(ref, () => setOpen(false));
+  const selected = options.find((o) => o.value === value);
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="w-full flex items-center justify-between gap-2 bg-background border border-border hover:border-primary/60 rounded-lg px-3 py-2.5 text-sm text-white transition-colors text-left"
+      >
+        <span className="flex items-center gap-2 truncate">
+          {selected?.icon}
+          <span className={selected ? "" : "text-muted-foreground"}>
+            {selected?.label ?? placeholder}
+          </span>
+        </span>
+        <ChevronDown
+          className={`w-4 h-4 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`}
+        />
+      </button>
+      {open && (
+        <div className="absolute z-30 left-0 right-0 mt-1 bg-card border border-border rounded-lg shadow-2xl py-1 max-h-64 overflow-y-auto">
+          {options.length === 0 ? (
+            <div className="px-3 py-2 text-xs text-muted-foreground italic">
+              Nenhuma opção
+            </div>
+          ) : (
+            options.map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => { onChange(opt.value); setOpen(false); }}
+                className={`w-full flex items-center justify-between gap-2 px-3 py-2 text-sm text-left hover:bg-primary/15 transition-colors ${
+                  opt.value === value ? "bg-primary/10 text-primary" : "text-gray-200"
+                }`}
+              >
+                <span className="flex items-center gap-2 truncate">
+                  {opt.icon}
+                  {opt.label}
+                </span>
+                {opt.value === value && <Check className="w-4 h-4 flex-shrink-0" />}
+              </button>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ToggleSwitch({
+  checked, onChange, label, description, icon,
+}: {
+  checked: boolean;
+  onChange: (v: boolean) => void;
+  label: string;
+  description?: string;
+  icon?: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => onChange(!checked)}
+      className={`w-full flex items-center gap-3 p-3 rounded-lg border transition-all text-left ${
+        checked
+          ? "bg-primary/10 border-primary/40"
+          : "bg-background border-border hover:border-primary/30"
+      }`}
+    >
+      {icon && (
+        <div className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 ${
+          checked ? "bg-primary/25 text-primary" : "bg-muted text-muted-foreground"
+        }`}>
+          {icon}
+        </div>
+      )}
+      <div className="flex-1 min-w-0">
+        <p className={`text-sm font-bold ${checked ? "text-white" : "text-gray-300"}`}>{label}</p>
+        {description && (
+          <p className="text-xs text-muted-foreground mt-0.5">{description}</p>
+        )}
+      </div>
+      <span
+        className={`relative inline-flex h-5 w-9 flex-shrink-0 rounded-full transition-colors ${
+          checked ? "bg-primary" : "bg-muted"
+        }`}
+      >
+        <span
+          className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${
+            checked ? "translate-x-4" : "translate-x-0.5"
+          }`}
+        />
+      </span>
+    </button>
+  );
+}
+
+/**
+ * Custom date+time picker built from individual selects so we get a
+ * consistent in-app look (no native browser pickers).
+ */
+function DateTimePicker({
+  value, onChange,
+}: {
+  value: string | null;
+  onChange: (iso: string | null) => void;
+}) {
+  const initial = useMemo(() => {
+    const d = value ? new Date(value) : new Date(Date.now() + 60 * 60 * 1000);
+    return {
+      day: String(d.getDate()).padStart(2, "0"),
+      month: String(d.getMonth() + 1).padStart(2, "0"),
+      year: String(d.getFullYear()),
+      hour: String(d.getHours()).padStart(2, "0"),
+      minute: String(Math.floor(d.getMinutes() / 5) * 5).padStart(2, "0"),
+    };
+  }, []); // initialize once
+
+  const [day, setDay]       = useState(initial.day);
+  const [month, setMonth]   = useState(initial.month);
+  const [year, setYear]     = useState(initial.year);
+  const [hour, setHour]     = useState(initial.hour);
+  const [minute, setMinute] = useState(initial.minute);
+
+  useEffect(() => {
+    const d = new Date(
+      Number(year), Number(month) - 1, Number(day),
+      Number(hour), Number(minute), 0,
+    );
+    if (!isNaN(d.getTime())) onChange(d.toISOString());
+  }, [day, month, year, hour, minute]);
+
+  const days    = Array.from({ length: 31 }, (_, i) => String(i + 1).padStart(2, "0"));
+  const months  = [
+    ["01", "Jan"], ["02", "Fev"], ["03", "Mar"], ["04", "Abr"],
+    ["05", "Mai"], ["06", "Jun"], ["07", "Jul"], ["08", "Ago"],
+    ["09", "Set"], ["10", "Out"], ["11", "Nov"], ["12", "Dez"],
+  ];
+  const currentYear = new Date().getFullYear();
+  const years   = Array.from({ length: 3 }, (_, i) => String(currentYear + i));
+  const hours   = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, "0"));
+  const minutes = Array.from({ length: 12 }, (_, i) => String(i * 5).padStart(2, "0"));
+
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-3 gap-2">
+        <CustomSelect value={day}   options={days.map((d) => ({ value: d, label: d }))}              onChange={setDay} />
+        <CustomSelect value={month} options={months.map(([v, l]) => ({ value: v, label: l }))}        onChange={setMonth} />
+        <CustomSelect value={year}  options={years.map((y) => ({ value: y, label: y }))}              onChange={setYear} />
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        <CustomSelect value={hour}   options={hours.map((h) => ({ value: h, label: `${h}h` }))}        onChange={setHour} />
+        <CustomSelect value={minute} options={minutes.map((m) => ({ value: m, label: `${m} min` }))}   onChange={setMinute} />
+      </div>
+    </div>
+  );
+}
+
+interface CoAuthor { id: string; name: string; email?: string; external?: boolean }
+function AuthorPicker({
+  authorName, coAuthors, onChange, accounts, accountsLoading,
+}: {
+  authorName: string;
+  coAuthors: CoAuthor[];
+  onChange: (next: CoAuthor[]) => void;
+  accounts: SiteAccount[] | undefined;
+  accountsLoading: boolean;
+}) {
+  const [externalOpen, setExternalOpen] = useState(false);
+  const [externalName, setExternalName] = useState("");
+
+  const toggleAccount = (acc: SiteAccount) => {
+    const exists = coAuthors.find((c) => c.id === acc.id);
+    if (exists) {
+      onChange(coAuthors.filter((c) => c.id !== acc.id));
+    } else {
+      onChange([...coAuthors, { id: acc.id, name: acc.name, email: acc.email }]);
+    }
+  };
+
+  const removeCoAuthor = (id: string) => onChange(coAuthors.filter((c) => c.id !== id));
+
+  const addExternal = () => {
+    const name = externalName.trim();
+    if (!name) return;
+    onChange([...coAuthors, { id: `ext-${Date.now()}`, name, external: true }]);
+    setExternalName("");
+    setExternalOpen(false);
+  };
+
+  // hide the main author from the selectable list
+  const selectableAccounts = (accounts ?? []).filter((a) => a.name !== authorName);
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <p className="text-xs uppercase tracking-wider font-bold text-muted-foreground mb-2">
+          Autor principal
+        </p>
+        <div className="bg-primary/10 border border-primary/30 rounded-lg px-3 py-2.5 flex items-center gap-2">
+          <div className="w-7 h-7 rounded-full bg-primary text-white flex items-center justify-center text-xs font-bold">
+            {authorName.charAt(0).toUpperCase()}
+          </div>
+          <span className="text-sm font-bold text-white truncate">{authorName}</span>
+        </div>
+      </div>
+
+      <div>
+        <p className="text-xs uppercase tracking-wider font-bold text-muted-foreground mb-2">
+          Contas do site
+        </p>
+        {accountsLoading ? (
+          <p className="text-xs text-muted-foreground italic">Carregando contas...</p>
+        ) : selectableAccounts.length === 0 ? (
+          <p className="text-xs text-muted-foreground italic">Nenhuma outra conta cadastrada.</p>
+        ) : (
+          <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+            {selectableAccounts.map((acc) => {
+              const checked = !!coAuthors.find((c) => c.id === acc.id);
+              return (
+                <button
+                  key={acc.id}
+                  type="button"
+                  onClick={() => toggleAccount(acc)}
+                  className={`w-full flex items-center gap-3 p-2 rounded-lg border transition-all text-left ${
+                    checked
+                      ? "bg-primary/10 border-primary/40"
+                      : "bg-background border-border hover:border-primary/30"
+                  }`}
+                >
+                  <div className="w-7 h-7 rounded-full bg-muted text-white flex items-center justify-center text-xs font-bold flex-shrink-0">
+                    {acc.name.charAt(0).toUpperCase()}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-white truncate">{acc.name}</p>
+                    <p className="text-[10px] text-muted-foreground truncate uppercase tracking-wider">
+                      {acc.role}
+                    </p>
+                  </div>
+                  <span
+                    className={`w-5 h-5 rounded-md border flex items-center justify-center flex-shrink-0 ${
+                      checked
+                        ? "bg-primary border-primary text-white"
+                        : "border-border bg-background"
+                    }`}
+                  >
+                    {checked && <Check className="w-3 h-3" />}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      <div>
+        <div className="flex items-center justify-between mb-2">
+          <p className="text-xs uppercase tracking-wider font-bold text-muted-foreground">
+            Autores externos
+          </p>
+          <button
+            type="button"
+            onClick={() => setExternalOpen((v) => !v)}
+            className="px-2 py-1 bg-accent/20 hover:bg-accent/30 text-accent text-xs font-bold rounded flex items-center gap-1 transition-colors"
+          >
+            <UserPlus className="w-3 h-3" />
+            {externalOpen ? "Fechar" : "Adicionar"}
+          </button>
+        </div>
+
+        {externalOpen && (
+          <div className="bg-background border border-border rounded-lg p-2 mb-2 flex gap-2">
+            <input
+              type="text"
+              value={externalName}
+              onChange={(e) => setExternalName(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addExternal(); } }}
+              placeholder="Nome do autor convidado"
+              className="flex-1 bg-card border border-border rounded px-2 py-1.5 text-sm text-white focus:border-primary focus:outline-none"
+              autoFocus
+            />
+            <button
+              type="button"
+              onClick={addExternal}
+              disabled={!externalName.trim()}
+              className="px-3 py-1.5 bg-primary hover:bg-accent text-white rounded text-xs font-bold transition-colors disabled:opacity-50"
+            >
+              <Plus className="w-3 h-3 inline" /> Adicionar
+            </button>
+          </div>
+        )}
+
+        {coAuthors.filter((c) => c.external).length > 0 && (
+          <div className="space-y-1.5">
+            {coAuthors.filter((c) => c.external).map((c) => (
+              <div
+                key={c.id}
+                className="flex items-center gap-2 bg-background border border-border rounded-lg px-3 py-2"
+              >
+                <div className="w-6 h-6 rounded-full bg-zinc-700 text-zinc-300 flex items-center justify-center text-[10px] font-bold flex-shrink-0">
+                  {c.name.charAt(0).toUpperCase()}
+                </div>
+                <span className="text-sm text-white flex-1 truncate">{c.name}</span>
+                <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                  externo
+                </span>
+                <button
+                  type="button"
+                  onClick={() => removeCoAuthor(c.id)}
+                  className="text-muted-foreground hover:text-red-400 transition-colors"
+                  aria-label={`Remover ${c.name}`}
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// =================== Settings Panel ===================
+
+type SettingsTab = "geral" | "destaques" | "capa" | "autoria";
+
+function SettingsPanel({
+  tab, setTab, formData, setFormData, teams, accounts, accountsLoading,
+}: any) {
+  const tabs: { id: SettingsTab; label: string; icon: React.ReactNode }[] = [
+    { id: "geral",     label: "Geral",     icon: <Tag className="w-3.5 h-3.5" /> },
+    { id: "destaques", label: "Destaques", icon: <Star className="w-3.5 h-3.5" /> },
+    { id: "capa",      label: "Capa",      icon: <ImageIcon className="w-3.5 h-3.5" /> },
+    { id: "autoria",   label: "Autoria",   icon: <Users className="w-3.5 h-3.5" /> },
+  ];
+
+  return (
+    <div>
+      <div className="flex border-b border-border bg-background/40">
+        {tabs.map((t) => (
+          <button
+            key={t.id}
+            type="button"
+            onClick={() => setTab(t.id)}
+            className={`flex-1 flex items-center justify-center gap-1.5 px-2 py-2.5 text-xs font-bold uppercase tracking-wider transition-colors border-b-2 ${
+              tab === t.id
+                ? "border-primary text-primary bg-primary/5"
+                : "border-transparent text-muted-foreground hover:text-white"
+            }`}
+          >
+            {t.icon}
+            <span className="hidden sm:inline">{t.label}</span>
+          </button>
+        ))}
+      </div>
+
+      <div className="p-4 max-h-[60vh] overflow-y-auto">
+        {tab === "geral" && (
+          <div className="space-y-4">
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2">
+                Categoria
+              </label>
+              <CustomSelect
+                value={formData.category}
+                onChange={(v) => setFormData((p: any) => ({ ...p, category: v }))}
+                options={CATEGORIES.map((c) => ({ value: c, label: c }))}
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2">
+                Time relacionado
+              </label>
+              <CustomSelect
+                value={formData.teamId ? String(formData.teamId) : ""}
+                onChange={(v) =>
+                  setFormData((p: any) => ({ ...p, teamId: v ? Number(v) : null }))
+                }
+                placeholder="-- Nenhum --"
+                options={[
+                  { value: "", label: "-- Nenhum --" },
+                  ...((teams ?? []).map((t: any) => ({
+                    value: String(t.id),
+                    label: t.name,
+                    icon: <Shield className="w-3.5 h-3.5 text-muted-foreground" />,
+                  }))),
+                ]}
+              />
+            </div>
+          </div>
+        )}
+
+        {tab === "destaques" && (
+          <div className="space-y-3">
+            <ToggleSwitch
+              checked={formData.featured}
+              onChange={(v) => setFormData((p: any) => ({ ...p, featured: v }))}
+              label="Artigo em destaque"
+              description="Aparece no carrossel principal da home (máx. 4 ativos)."
+              icon={<Star className="w-4 h-4" />}
+            />
+            <ToggleSwitch
+              checked={formData.breakingNews}
+              onChange={(v) => setFormData((p: any) => ({ ...p, breakingNews: v }))}
+              label="Urgente (ticker)"
+              description="Aparece no ticker vermelho no topo do site."
+              icon={<Zap className="w-4 h-4" />}
+            />
+            {(formData.featured || formData.breakingNews) && (
+              <p className="text-xs text-yellow-300/90 bg-yellow-500/10 border border-yellow-500/30 rounded-lg px-3 py-2">
+                Os destaques só aparecem no site quando o artigo está publicado.
+              </p>
+            )}
+          </div>
+        )}
+
+        {tab === "capa" && (
+          <div className="space-y-3">
+            <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground">
+              URL da imagem
+            </label>
+            <input
+              type="url"
+              value={formData.coverImage || ""}
+              onChange={(e) => setFormData((p: any) => ({ ...p, coverImage: e.target.value }))}
+              placeholder="https://..."
+              className="w-full bg-background border border-border rounded-lg px-3 py-2.5 text-sm text-white focus:border-primary focus:outline-none"
+            />
+            {formData.coverImage ? (
+              <div className="aspect-video w-full rounded-lg overflow-hidden bg-muted border border-border/50">
+                <img
+                  src={formData.coverImage}
+                  alt="Preview"
+                  className="w-full h-full object-cover"
+                  onError={(e) => (e.currentTarget.style.display = "none")}
+                />
+              </div>
+            ) : (
+              <div className="aspect-video w-full rounded-lg bg-background border border-dashed border-border flex flex-col items-center justify-center text-muted-foreground">
+                <ImageIcon className="w-8 h-8 mb-1" />
+                <p className="text-xs">Sem imagem definida</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {tab === "autoria" && (
+          <AuthorPicker
+            authorName={formData.authorName}
+            coAuthors={formData.coAuthorList || []}
+            onChange={(next) => setFormData((p: any) => ({ ...p, coAuthorList: next }))}
+            accounts={accounts}
+            accountsLoading={accountsLoading}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
+// =================== Main editor ===================
+
+interface EditorFormState extends CreateArticleRequest {
+  subtitle?: string;
+  coAuthorList?: CoAuthor[];
+}
+
 export default function AdminArticleEditor() {
   const [, setLocation] = useLocation();
   const [, editParams] = useRoute("/dashboard/artigos/:id/editar");
-  const [, newParams] = useRoute("/dashboard/artigos/new");
+  const [, newParams]  = useRoute("/dashboard/artigos/new");
 
   const isNewArticle = !!newParams;
-  const isEditing = !!editParams?.id;
-  const articleId = isEditing ? parseInt(editParams!.id) : undefined;
+  const isEditing    = !!editParams?.id;
+  const articleId    = isEditing ? parseInt(editParams!.id) : undefined;
 
   const { user } = useAuth();
   const { data: existingArticle, isLoading: loadingArticle } = useAdminGetArticle(
@@ -88,18 +582,16 @@ export default function AdminArticleEditor() {
     { query: { enabled: isEditing } },
   );
   const { data: teams } = useListTeams();
-  const { data: categories } = useListCategories();
+  const { data: accounts, isLoading: accountsLoading } = useSiteAccounts();
 
-  const createMutation = useCreateArticle();
-  const updateMutation = useUpdateArticle();
-  const publishMutation = usePublishArticle();
-  const scheduleMutation = useScheduleArticle();
-  const unpublishMutation = useUnpublishArticle();
+  const createMutation     = useCreateArticle();
+  const updateMutation     = useUpdateArticle();
+  const publishMutation    = usePublishArticle();
+  const scheduleMutation   = useScheduleArticle();
+  const unpublishMutation  = useUnpublishArticle();
   const { toast } = useToast();
 
-  const [formData, setFormData] = useState<
-    CreateArticleRequest & { coAuthors?: string; subtitle?: string }
-  >({
+  const [formData, setFormData] = useState<EditorFormState>({
     title: "",
     subtitle: "",
     excerpt: "",
@@ -114,260 +606,155 @@ export default function AdminArticleEditor() {
     scheduledAt: null as any,
     sourceName: "",
     sourceUrl: "",
-    coAuthors: "",
+    coAuthorList: [],
   });
 
   const [generatingSubtitle, setGeneratingSubtitle] = useState(false);
-  const [confirmAction, setConfirmAction] = useState<
-    null | "publish" | "schedule" | "unpublish"
-  >(null);
+  const [confirmAction, setConfirmAction] = useState<null | "publish" | "schedule" | "unpublish">(null);
   const [showPublishMenu, setShowPublishMenu] = useState(false);
-  const [tempScheduledAt, setTempScheduledAt] = useState<string>("");
+  const [showSettings, setShowSettings] = useState(false);
+  const [settingsTab, setSettingsTab] = useState<SettingsTab>("geral");
+  const [tempScheduledAt, setTempScheduledAt] = useState<string | null>(null);
   const [articleSlug, setArticleSlug] = useState<string | null>(null);
-
-  // Track current persisted status for the badge (so it updates after publish)
   const [persistedStatus, setPersistedStatus] = useState<string>("draft");
+
+  const publishMenuRef  = useRef<HTMLDivElement>(null);
+  const settingsRef     = useRef<HTMLDivElement>(null);
+  useClickOutside(publishMenuRef, () => setShowPublishMenu(false));
+  useClickOutside(settingsRef, () => setShowSettings(false));
 
   useEffect(() => {
     if (existingArticle) {
       setFormData({
-        title: existingArticle.title,
-        subtitle: existingArticle.subtitle || "",
-        excerpt: existingArticle.excerpt,
-        content: existingArticle.content,
-        coverImage: existingArticle.coverImage || "",
-        category: existingArticle.category,
-        teamId: existingArticle.teamId || null,
-        authorName: existingArticle.authorName,
-        status: existingArticle.status as CreateArticleRequestStatus,
-        featured: existingArticle.featured,
+        title:        existingArticle.title,
+        subtitle:     existingArticle.subtitle || "",
+        excerpt:      existingArticle.excerpt,
+        content:      existingArticle.content,
+        coverImage:   existingArticle.coverImage || "",
+        category:     existingArticle.category,
+        teamId:       existingArticle.teamId || null,
+        authorName:   existingArticle.authorName,
+        status:       existingArticle.status as CreateArticleRequestStatus,
+        featured:     existingArticle.featured,
         breakingNews: existingArticle.breakingNews,
-        scheduledAt: existingArticle.scheduledAt || null,
-        sourceName: existingArticle.sourceName || "",
-        sourceUrl: existingArticle.sourceUrl || "",
-        coAuthors: "",
+        scheduledAt:  existingArticle.scheduledAt || null,
+        sourceName:   existingArticle.sourceName || "",
+        sourceUrl:    existingArticle.sourceUrl || "",
+        coAuthorList: [],
       });
       setPersistedStatus(existingArticle.status);
       setArticleSlug(existingArticle.slug);
-      if (existingArticle.scheduledAt) {
-        setTempScheduledAt(existingArticle.scheduledAt);
-      }
+      if (existingArticle.scheduledAt) setTempScheduledAt(existingArticle.scheduledAt);
     }
   }, [existingArticle]);
 
   useEffect(() => {
     if (!isEditing && user && formData.authorName === "Redação La Liga Brasil") {
-      setFormData((prev) => ({ ...prev, authorName: user.name }));
+      setFormData((p) => ({ ...p, authorName: user.name }));
     }
   }, [user, isEditing]);
 
-  // Close publish menu when clicking outside
-  useEffect(() => {
-    if (!showPublishMenu) return;
-    const onClick = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
-      if (!target.closest("[data-publish-menu]")) {
-        setShowPublishMenu(false);
-      }
-    };
-    document.addEventListener("mousedown", onClick);
-    return () => document.removeEventListener("mousedown", onClick);
-  }, [showPublishMenu]);
-
-  // ---- Validation ----
   const validation = useMemo(() => {
     const issues: { field: string; message: string }[] = [];
-    const plainContent = (formData.content || "")
-      .replace(/<[^>]*>/g, " ")
-      .replace(/\s+/g, " ")
-      .trim();
-
-    if (!formData.title?.trim()) {
-      issues.push({ field: "title", message: "Título é obrigatório" });
-    } else if (formData.title.trim().length < 8) {
+    const plain = (formData.content || "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+    if (!formData.title?.trim()) issues.push({ field: "title", message: "Título é obrigatório" });
+    else if (formData.title.trim().length < 8)
       issues.push({ field: "title", message: "Título muito curto (mín. 8 caracteres)" });
-    }
-    if (!plainContent) {
-      issues.push({ field: "content", message: "Conteúdo é obrigatório" });
-    } else if (plainContent.length < 80) {
-      issues.push({
-        field: "content",
-        message: "Conteúdo muito curto (mín. 80 caracteres)",
-      });
-    }
+    if (!plain) issues.push({ field: "content", message: "Conteúdo é obrigatório" });
+    else if (plain.length < 80)
+      issues.push({ field: "content", message: "Conteúdo muito curto (mín. 80 caracteres)" });
     return { issues, isValid: issues.length === 0 };
   }, [formData.title, formData.content]);
 
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>,
-  ) => {
-    const { name, value, type } = e.target;
-    if (type === "checkbox") {
-      setFormData((prev) => ({
-        ...prev,
-        [name]: (e.target as HTMLInputElement).checked,
-      }));
-    } else {
-      setFormData((prev) => ({
-        ...prev,
-        [name]: value === "" && name === "teamId" ? null : value,
-      }));
-    }
-  };
-
-  const handleContentChange = (newContent: string) => {
-    setFormData((prev) => ({ ...prev, content: newContent }));
-  };
-
   const handleGenerateSubtitle = async () => {
     if (!formData.title || !formData.content) {
-      toast({
-        title: "Erro",
-        description: "Título e conteúdo são necessários.",
-        variant: "destructive",
-      });
+      toast({ title: "Erro", description: "Título e conteúdo são necessários.", variant: "destructive" });
       return;
     }
-
     setGeneratingSubtitle(true);
     try {
-      const response = await fetch(`${BASE}/api/scraper/generate-subtitle`, {
+      const r = await fetch(`${BASE}/api/scraper/generate-subtitle`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ title: formData.title, content: formData.content }),
       });
-      if (!response.ok) throw new Error("Failed to generate subtitle");
-      const data = await response.json();
-      setFormData((prev) => ({ ...prev, subtitle: data.subtitle }));
+      if (!r.ok) throw new Error("Failed");
+      const data = await r.json();
+      setFormData((p) => ({ ...p, subtitle: data.subtitle }));
       toast({ title: "Sucesso", description: "Subtítulo gerado com IA!" });
-    } catch (e: any) {
-      toast({
-        title: "Erro",
-        description: "Falha ao gerar subtítulo.",
-        variant: "destructive",
-      });
+    } catch {
+      toast({ title: "Erro", description: "Falha ao gerar subtítulo.", variant: "destructive" });
     } finally {
       setGeneratingSubtitle(false);
     }
   };
 
-  function buildPayload(forceStatus?: CreateArticleRequestStatus) {
-    const payload = { ...formData };
+  function buildPayload(forceStatus?: CreateArticleRequestStatus): CreateArticleRequest {
+    const { coAuthorList, subtitle, ...rest } = formData;
+    const payload: any = { ...rest, subtitle };
     if (forceStatus) payload.status = forceStatus;
-    if (payload.teamId) payload.teamId = parseInt(payload.teamId as any);
-
+    if (payload.teamId) payload.teamId = Number(payload.teamId);
     if (!payload.excerpt?.trim()) {
-      if (payload.subtitle?.trim()) {
-        payload.excerpt = payload.subtitle;
-      } else {
-        const plain = payload.content.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+      if (payload.subtitle?.trim()) payload.excerpt = payload.subtitle;
+      else {
+        const plain = (payload.content || "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
         payload.excerpt = plain.substring(0, 200).trim() + (plain.length > 200 ? "..." : "");
       }
     }
-    const { coAuthors, ...apiPayload } = payload;
-    return apiPayload as CreateArticleRequest;
+    return payload;
   }
 
-  /**
-   * Save draft / schedule / generic save.
-   * For instant publish on existing articles, we use the dedicated publish endpoint
-   * (lighter and atomic) — see handlePublishNow below.
-   */
   const handleSave = async (
     forceStatus?: CreateArticleRequestStatus,
     options?: { silent?: boolean },
   ) => {
     if (!validation.isValid) {
-      toast({
-        title: "Validação",
-        description: validation.issues[0].message,
-        variant: "destructive",
-      });
+      toast({ title: "Validação", description: validation.issues[0].message, variant: "destructive" });
       return null;
     }
-
     const apiPayload = buildPayload(forceStatus);
-
     try {
       if (isEditing && articleId) {
-        const updated = await updateMutation.mutateAsync({
-          id: articleId,
-          data: apiPayload,
-        });
+        const updated = await updateMutation.mutateAsync({ id: articleId, data: apiPayload });
         setPersistedStatus(updated.status);
         if ((updated as any).slug) setArticleSlug((updated as any).slug);
-        if (!options?.silent) {
-          toast({ title: "Sucesso", description: "Artigo atualizado." });
-        }
+        if (!options?.silent) toast({ title: "Sucesso", description: "Artigo atualizado." });
         return updated;
       } else {
         const created = await createMutation.mutateAsync({ data: apiPayload });
         toast({ title: "Sucesso", description: "Artigo criado." });
-        // Navigate to edit URL so subsequent actions can use the new id
-        if ((created as any).id) {
-          setLocation(`/dashboard/artigos/${(created as any).id}/editar`);
-        } else {
-          setLocation("/dashboard/artigos");
-        }
+        if ((created as any).id) setLocation(`/dashboard/artigos/${(created as any).id}/editar`);
+        else setLocation("/dashboard/artigos");
         return created;
       }
     } catch (e: any) {
-      toast({
-        title: "Erro",
-        description: e.message || "Falha ao salvar.",
-        variant: "destructive",
-      });
+      toast({ title: "Erro", description: e.message || "Falha ao salvar.", variant: "destructive" });
       return null;
     }
   };
 
-  /**
-   * Atomic publish for an existing article. First saves any pending changes,
-   * then calls the dedicated publish endpoint.
-   */
   const handlePublishNow = async () => {
     setShowPublishMenu(false);
     if (!validation.isValid) {
-      toast({
-        title: "Não é possível publicar",
-        description: validation.issues[0].message,
-        variant: "destructive",
-      });
+      toast({ title: "Não é possível publicar", description: validation.issues[0].message, variant: "destructive" });
       return;
     }
-
     if (!isEditing) {
-      // Create + publish in one save
       await handleSave(CreateArticleRequestStatus.published);
+      setConfirmAction(null);
       return;
     }
-
     if (!articleId) return;
-
     try {
-      // Save current changes first (silent), then publish atomically
       const saved = await handleSave(undefined, { silent: true });
       if (!saved) return;
-
       const published = await publishMutation.mutateAsync({ id: articleId });
       setPersistedStatus("published");
-      setFormData((prev) => ({
-        ...prev,
-        status: CreateArticleRequestStatus.published,
-        scheduledAt: null,
-      }));
+      setFormData((p) => ({ ...p, status: CreateArticleRequestStatus.published, scheduledAt: null }));
       if ((published as any).slug) setArticleSlug((published as any).slug);
-
-      toast({
-        title: "Publicado!",
-        description: "Seu artigo está no ar e visível no site.",
-      });
+      toast({ title: "Publicado!", description: "Seu artigo está no ar." });
     } catch (e: any) {
-      toast({
-        title: "Erro",
-        description: e.message || "Falha ao publicar.",
-        variant: "destructive",
-      });
+      toast({ title: "Erro", description: e.message || "Falha ao publicar.", variant: "destructive" });
     }
     setConfirmAction(null);
   };
@@ -375,73 +762,35 @@ export default function AdminArticleEditor() {
   const handleScheduleConfirm = async () => {
     setShowPublishMenu(false);
     if (!tempScheduledAt) {
-      toast({
-        title: "Selecione uma data",
-        description: "Defina quando o artigo deve ser publicado.",
-        variant: "destructive",
-      });
+      toast({ title: "Selecione uma data", description: "Defina quando o artigo deve ser publicado.", variant: "destructive" });
       return;
     }
     if (new Date(tempScheduledAt) <= new Date()) {
-      toast({
-        title: "Data inválida",
-        description: "A data de agendamento precisa ser no futuro.",
-        variant: "destructive",
-      });
+      toast({ title: "Data inválida", description: "A data de agendamento precisa ser no futuro.", variant: "destructive" });
       return;
     }
     if (!validation.isValid) {
-      toast({
-        title: "Validação",
-        description: validation.issues[0].message,
-        variant: "destructive",
-      });
+      toast({ title: "Validação", description: validation.issues[0].message, variant: "destructive" });
       return;
     }
-
     if (!isEditing) {
-      // Create then schedule
       const created = await handleSave(CreateArticleRequestStatus.draft);
       if (!created || !(created as any).id) return;
       try {
-        await scheduleMutation.mutateAsync({
-          id: (created as any).id,
-          data: { scheduledAt: tempScheduledAt },
-        });
-        toast({
-          title: "Agendado",
-          description: `Será publicado em ${formatDate(tempScheduledAt)}.`,
-        });
+        await scheduleMutation.mutateAsync({ id: (created as any).id, data: { scheduledAt: tempScheduledAt } });
+        toast({ title: "Agendado", description: `Será publicado em ${formatDate(tempScheduledAt)}.` });
       } catch (e: any) {
-        toast({
-          title: "Erro",
-          description: e.message || "Falha ao agendar.",
-          variant: "destructive",
-        });
+        toast({ title: "Erro", description: e.message || "Falha ao agendar.", variant: "destructive" });
       }
     } else if (articleId) {
       try {
         await handleSave(undefined, { silent: true });
-        await scheduleMutation.mutateAsync({
-          id: articleId,
-          data: { scheduledAt: tempScheduledAt },
-        });
+        await scheduleMutation.mutateAsync({ id: articleId, data: { scheduledAt: tempScheduledAt } });
         setPersistedStatus("scheduled");
-        setFormData((prev) => ({
-          ...prev,
-          status: CreateArticleRequestStatus.scheduled,
-          scheduledAt: tempScheduledAt as any,
-        }));
-        toast({
-          title: "Agendado",
-          description: `Será publicado em ${formatDate(tempScheduledAt)}.`,
-        });
+        setFormData((p) => ({ ...p, status: CreateArticleRequestStatus.scheduled, scheduledAt: tempScheduledAt as any }));
+        toast({ title: "Agendado", description: `Será publicado em ${formatDate(tempScheduledAt)}.` });
       } catch (e: any) {
-        toast({
-          title: "Erro",
-          description: e.message || "Falha ao agendar.",
-          variant: "destructive",
-        });
+        toast({ title: "Erro", description: e.message || "Falha ao agendar.", variant: "destructive" });
       }
     }
     setConfirmAction(null);
@@ -452,21 +801,10 @@ export default function AdminArticleEditor() {
     try {
       await unpublishMutation.mutateAsync(articleId);
       setPersistedStatus("draft");
-      setFormData((prev) => ({
-        ...prev,
-        status: CreateArticleRequestStatus.draft,
-        scheduledAt: null,
-      }));
-      toast({
-        title: "Despublicado",
-        description: "O artigo voltou para rascunho.",
-      });
+      setFormData((p) => ({ ...p, status: CreateArticleRequestStatus.draft, scheduledAt: null }));
+      toast({ title: "Despublicado", description: "O artigo voltou para rascunho." });
     } catch (e: any) {
-      toast({
-        title: "Erro",
-        description: e.message || "Falha ao despublicar.",
-        variant: "destructive",
-      });
+      toast({ title: "Erro", description: e.message || "Falha ao despublicar.", variant: "destructive" });
     }
     setConfirmAction(null);
   };
@@ -484,6 +822,19 @@ export default function AdminArticleEditor() {
 
   const badge = STATUS_BADGE[persistedStatus] ?? STATUS_BADGE.draft;
   const previewUrl = articleSlug ? `${BASE}/noticias/${articleSlug}` : null;
+
+  // Settings summary chips for the header
+  const settingsSummary: { id: string; label: string; tab: SettingsTab; tone?: string }[] = [];
+  settingsSummary.push({ id: "cat", label: formData.category, tab: "geral" });
+  if (formData.teamId) {
+    const team = teams?.find((t: any) => t.id === formData.teamId);
+    if (team) settingsSummary.push({ id: "team", label: (team as any).name, tab: "geral" });
+  }
+  if (formData.featured)     settingsSummary.push({ id: "f", label: "★ Destaque", tab: "destaques", tone: "primary" });
+  if (formData.breakingNews) settingsSummary.push({ id: "b", label: "⚡ Urgente", tab: "destaques", tone: "primary" });
+  const externalCoAuthors = (formData.coAuthorList ?? []).length;
+  if (externalCoAuthors > 0)
+    settingsSummary.push({ id: "co", label: `+${externalCoAuthors} co-autor${externalCoAuthors > 1 ? "es" : ""}`, tab: "autoria" });
 
   return (
     <AdminLayout>
@@ -517,9 +868,7 @@ export default function AdminArticleEditor() {
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
-            <span
-              className={`px-3 py-1 rounded-full text-xs font-bold uppercase border ${badge.className}`}
-            >
+            <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase border ${badge.className}`}>
               {badge.emoji} {badge.label}
             </span>
 
@@ -535,6 +884,30 @@ export default function AdminArticleEditor() {
               </a>
             )}
 
+            {/* Settings popover */}
+            <div className="relative" ref={settingsRef}>
+              <button
+                onClick={() => setShowSettings((v) => !v)}
+                className="px-3 py-2 bg-muted hover:bg-muted/80 text-white rounded-lg text-sm font-bold flex items-center gap-2 transition-colors"
+              >
+                <Settings className="w-4 h-4" /> Configurações
+                <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showSettings ? "rotate-180" : ""}`} />
+              </button>
+              {showSettings && (
+                <div className="absolute right-0 top-full mt-2 w-[420px] max-w-[calc(100vw-2rem)] bg-card border border-border rounded-xl shadow-2xl z-30 overflow-hidden">
+                  <SettingsPanel
+                    tab={settingsTab}
+                    setTab={setSettingsTab}
+                    formData={formData}
+                    setFormData={setFormData}
+                    teams={teams}
+                    accounts={accounts}
+                    accountsLoading={accountsLoading}
+                  />
+                </div>
+              )}
+            </div>
+
             <button
               onClick={() => handleSave(CreateArticleRequestStatus.draft)}
               disabled={isSavingAny}
@@ -544,8 +917,7 @@ export default function AdminArticleEditor() {
                 <Loader2 className="w-4 h-4 animate-spin" />
               ) : (
                 <Save className="w-4 h-4" />
-              )}{" "}
-              Salvar
+              )} Salvar
             </button>
 
             {persistedStatus === "published" ? (
@@ -557,26 +929,18 @@ export default function AdminArticleEditor() {
                 <Undo2 className="w-4 h-4" /> Despublicar
               </button>
             ) : (
-              <div className="relative" data-publish-menu>
+              <div className="relative" ref={publishMenuRef}>
                 <div className="flex">
                   <button
                     onClick={() =>
                       validation.isValid
                         ? setConfirmAction("publish")
-                        : toast({
-                            title: "Não é possível publicar",
-                            description: validation.issues[0].message,
-                            variant: "destructive",
-                          })
+                        : toast({ title: "Não é possível publicar", description: validation.issues[0].message, variant: "destructive" })
                     }
                     disabled={isSavingAny}
                     className="px-5 py-2 bg-primary hover:bg-accent text-white rounded-l-lg text-sm font-bold flex items-center gap-2 transition-colors shadow-lg shadow-primary/20 disabled:opacity-50"
                   >
-                    {publishMutation.isPending ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <Send className="w-4 h-4" />
-                    )}
+                    {publishMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                     Publicar
                   </button>
                   <button
@@ -590,21 +954,17 @@ export default function AdminArticleEditor() {
                 </div>
 
                 {showPublishMenu && (
-                  <div className="absolute right-0 top-full mt-2 w-72 bg-card border border-border rounded-xl shadow-2xl p-3 z-20">
-                    <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2">
+                  <div className="absolute right-0 top-full mt-2 w-80 bg-card border border-border rounded-xl shadow-2xl p-4 z-30">
+                    <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3">
                       Agendar publicação
                     </p>
-                    <CustomDateTimePicker
-                      label=""
-                      value={tempScheduledAt}
-                      onChange={(iso) => setTempScheduledAt(iso)}
-                    />
+                    <DateTimePicker value={tempScheduledAt} onChange={setTempScheduledAt} />
                     <button
                       onClick={() => setConfirmAction("schedule")}
                       disabled={!tempScheduledAt || isSavingAny}
-                      className="w-full mt-3 px-3 py-2 bg-sky-600 hover:bg-sky-500 text-white rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
+                      className="w-full mt-4 px-3 py-2.5 bg-sky-600 hover:bg-sky-500 text-white rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
                     >
-                      <CalendarClock className="w-4 h-4" /> Agendar
+                      <CalendarClock className="w-4 h-4" /> Agendar publicação
                     </button>
                   </div>
                 )}
@@ -613,267 +973,107 @@ export default function AdminArticleEditor() {
           </div>
         </div>
 
+        {/* Settings summary strip */}
+        {settingsSummary.length > 0 && (
+          <div className="container mx-auto px-4 max-w-5xl mt-4 flex items-center gap-2 flex-wrap">
+            <span className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">
+              Definido:
+            </span>
+            {settingsSummary.map((chip) => (
+              <button
+                key={chip.id}
+                type="button"
+                onClick={() => { setSettingsTab(chip.tab); setShowSettings(true); }}
+                className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold border transition-colors ${
+                  chip.tone === "primary"
+                    ? "bg-primary/15 text-primary border-primary/30 hover:bg-primary/25"
+                    : "bg-muted/60 text-gray-300 border-border hover:bg-muted"
+                }`}
+              >
+                {chip.label}
+              </button>
+            ))}
+          </div>
+        )}
+
         {/* Validation banner */}
         {!validation.isValid && (
-          <div className="container mx-auto px-4 max-w-7xl mt-6">
+          <div className="container mx-auto px-4 max-w-5xl mt-4">
             <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-4 flex items-start gap-3">
               <AlertTriangle className="w-5 h-5 text-yellow-400 flex-shrink-0 mt-0.5" />
               <div>
-                <p className="text-sm font-bold text-yellow-300">
-                  Antes de publicar, resolva:
-                </p>
+                <p className="text-sm font-bold text-yellow-300">Antes de publicar, resolva:</p>
                 <ul className="mt-1 space-y-0.5 text-xs text-yellow-200/90 list-disc list-inside">
-                  {validation.issues.map((iss) => (
-                    <li key={iss.field}>{iss.message}</li>
-                  ))}
+                  {validation.issues.map((iss) => <li key={iss.field}>{iss.message}</li>)}
                 </ul>
               </div>
             </div>
           </div>
         )}
 
-        {/* Main */}
-        <main className="container mx-auto px-4 max-w-7xl mt-6 grid grid-cols-1 lg:grid-cols-4 gap-8 pb-20">
-          {/* Content column */}
-          <div className="lg:col-span-3 space-y-6">
-            <div className="bg-card border border-border rounded-2xl p-8 space-y-6 shadow-sm">
-              <div>
-                <label className="block text-sm font-bold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-2">
-                  <FileText className="w-4 h-4" /> Título
-                </label>
-                <input
-                  type="text"
-                  name="title"
-                  value={formData.title}
-                  onChange={handleChange}
-                  placeholder="Insira um título impactante e descritivo..."
-                  className="w-full bg-background border border-border rounded-lg px-4 py-4 text-white font-display text-2xl font-bold focus:border-primary focus:ring-2 focus:ring-primary/50 focus:outline-none transition-all placeholder-muted-foreground/50"
-                />
-                <p className="text-xs text-muted-foreground mt-1">
-                  {formData.title.length} caracteres
-                </p>
-              </div>
-
-              <div>
-                <label className="text-sm font-bold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-2 justify-between">
-                  <span>Subtítulo (IA)</span>
-                  <button
-                    type="button"
-                    onClick={handleGenerateSubtitle}
-                    disabled={generatingSubtitle || !formData.title || !formData.content}
-                    className="px-3 py-1 bg-accent/20 hover:bg-accent/40 text-accent rounded text-xs font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {generatingSubtitle ? "Gerando..." : "Gerar com IA"}
-                  </button>
-                </label>
-                <input
-                  type="text"
-                  name="subtitle"
-                  value={formData.subtitle || ""}
-                  onChange={handleChange}
-                  placeholder="Subtítulo complementar (gerado automaticamente ou manual)..."
-                  className="w-full bg-background border border-border rounded-lg px-4 py-3 text-gray-300 focus:border-primary focus:ring-2 focus:ring-primary/50 focus:outline-none transition-all placeholder-muted-foreground/50"
-                />
-              </div>
-            </div>
-
-            <div className="bg-card border border-border rounded-2xl p-8 space-y-4 shadow-sm">
-              <label className="text-sm font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
-                <FileText className="w-4 h-4" /> Conteúdo do Artigo
+        {/* Main editor — single column */}
+        <main className="container mx-auto px-4 max-w-5xl mt-6 space-y-6">
+          <div className="bg-card border border-border rounded-2xl p-8 space-y-6 shadow-sm">
+            <div>
+              <label className="block text-sm font-bold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-2">
+                <FileText className="w-4 h-4" /> Título
               </label>
-              <RichTextEditor
-                value={formData.content}
-                onChange={handleContentChange}
-                placeholder="Comece a escrever seu artigo aqui. Use a barra de ferramentas acima para formatar..."
-              />
-            </div>
-          </div>
-
-          {/* Sidebar */}
-          <div className="lg:col-span-1 space-y-6 h-fit">
-            {/* Pre-publish checklist */}
-            <div className="bg-card border border-border rounded-2xl p-6 shadow-sm">
-              <h3 className="font-bold uppercase text-sm tracking-widest text-muted-foreground border-b border-border pb-3 mb-3 flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4" /> Pronto para publicar
-              </h3>
-              <ul className="space-y-2 text-sm">
-                <ChecklistItem
-                  ok={!!formData.title.trim() && formData.title.trim().length >= 8}
-                  label="Título com 8+ caracteres"
-                />
-                <ChecklistItem
-                  ok={
-                    (formData.content || "")
-                      .replace(/<[^>]*>/g, " ")
-                      .trim().length >= 80
-                  }
-                  label="Conteúdo com 80+ caracteres"
-                />
-                <ChecklistItem
-                  ok={!!formData.coverImage}
-                  label="Imagem de capa"
-                  optional
-                />
-                <ChecklistItem
-                  ok={!!formData.subtitle?.trim()}
-                  label="Subtítulo definido"
-                  optional
-                />
-                <ChecklistItem ok={!!formData.teamId} label="Time relacionado" optional />
-              </ul>
-            </div>
-
-            <div className="bg-card border border-border rounded-2xl p-6 space-y-4 shadow-sm">
-              <h3 className="font-bold uppercase text-sm tracking-widest text-muted-foreground border-b border-border pb-3 flex items-center gap-2">
-                <Users className="w-4 h-4" /> Autoria
-              </h3>
-
-              <div>
-                <label className="block text-xs font-semibold text-muted-foreground uppercase mb-2">
-                  Autor Principal
-                </label>
-                <div className="bg-background border border-primary/30 rounded-lg px-3 py-2 text-sm text-primary font-medium">
-                  {formData.authorName}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-muted-foreground uppercase mb-2">
-                  Co-autores (Opcional)
-                </label>
-                <textarea
-                  name="coAuthors"
-                  value={formData.coAuthors || ""}
-                  onChange={handleChange}
-                  rows={3}
-                  placeholder="Separe os nomes por vírgula&#10;Ex: João Silva, Maria Santos"
-                  className="w-full bg-background border border-border rounded-lg px-3 py-2 text-xs text-gray-300 focus:border-primary focus:outline-none transition-all resize-none"
-                />
-              </div>
-            </div>
-
-            <div className="bg-card border border-border rounded-2xl p-6 space-y-4 shadow-sm">
-              <h3 className="font-bold uppercase text-sm tracking-widest text-muted-foreground border-b border-border pb-3">
-                Configurações
-              </h3>
-
-              <div>
-                <label className="block text-xs font-semibold text-muted-foreground uppercase mb-2">
-                  Categoria
-                </label>
-                <select
-                  name="category"
-                  value={formData.category}
-                  onChange={handleChange}
-                  className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-white focus:border-primary focus:outline-none transition-all"
-                >
-                  <option value="La Liga">La Liga</option>
-                  <option value="Transferências">Transferências</option>
-                  <option value="Resultados">Resultados</option>
-                  <option value="Análise">Análise</option>
-                  <option value="Entrevista">Entrevista</option>
-                  <option value="Internacional">Internacional</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-muted-foreground uppercase mb-2">
-                  Time Relacionado
-                </label>
-                <select
-                  name="teamId"
-                  value={formData.teamId || ""}
-                  onChange={handleChange}
-                  className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-white focus:border-primary focus:outline-none transition-all"
-                >
-                  <option value="">-- Nenhum --</option>
-                  {teams?.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            <div className="bg-card border border-border rounded-2xl p-6 space-y-3 shadow-sm">
-              <h3 className="font-bold uppercase text-sm tracking-widest text-muted-foreground border-b border-border pb-3">
-                Destaques
-              </h3>
-
-              <label className="flex items-center gap-3 cursor-pointer group">
-                <input
-                  type="checkbox"
-                  name="featured"
-                  checked={formData.featured}
-                  onChange={handleChange}
-                  className="w-4 h-4 accent-primary rounded"
-                />
-                <span className="text-sm text-gray-300 group-hover:text-white transition-colors">
-                  Artigo em Destaque
-                </span>
-              </label>
-
-              <label className="flex items-center gap-3 cursor-pointer group">
-                <input
-                  type="checkbox"
-                  name="breakingNews"
-                  checked={formData.breakingNews}
-                  onChange={handleChange}
-                  className="w-4 h-4 accent-primary rounded"
-                />
-                <span className="text-sm text-gray-300 group-hover:text-white transition-colors">
-                  Urgente (Ticker)
-                </span>
-              </label>
-
-              {(formData.featured || formData.breakingNews) &&
-                persistedStatus !== "published" && (
-                  <p className="text-xs text-yellow-300/80 bg-yellow-500/10 border border-yellow-500/30 rounded-lg px-3 py-2 mt-2">
-                    Os destaques só aparecem no site quando o artigo está publicado.
-                  </p>
-                )}
-            </div>
-
-            <div className="bg-card border border-border rounded-2xl p-6 space-y-4 shadow-sm">
-              <h3 className="font-bold uppercase text-sm tracking-widest text-muted-foreground border-b border-border pb-3 flex items-center gap-2">
-                <ImageIcon className="w-4 h-4" /> Imagem de Capa
-              </h3>
-
               <input
-                type="url"
-                name="coverImage"
-                value={formData.coverImage || ""}
-                onChange={handleChange}
-                placeholder="https://example.com/image.jpg"
-                className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-white focus:border-primary focus:outline-none transition-all"
+                type="text"
+                value={formData.title}
+                onChange={(e) => setFormData((p) => ({ ...p, title: e.target.value }))}
+                placeholder="Insira um título impactante e descritivo..."
+                className="w-full bg-background border border-border rounded-lg px-4 py-4 text-white font-display text-2xl font-bold focus:border-primary focus:ring-2 focus:ring-primary/50 focus:outline-none transition-all placeholder-muted-foreground/50"
               />
-
-              {formData.coverImage && (
-                <div className="aspect-video w-full rounded-lg overflow-hidden bg-muted border border-border/50">
-                  <img
-                    src={formData.coverImage}
-                    alt="Preview"
-                    className="w-full h-full object-cover"
-                    onError={(e) => (e.currentTarget.style.display = "none")}
-                  />
-                </div>
-              )}
+              <p className="text-xs text-muted-foreground mt-1">
+                {formData.title.length} caracteres
+              </p>
             </div>
 
-            {formData.sourceName && (
-              <div className="bg-primary/10 border border-primary/30 rounded-2xl p-4">
-                <p className="text-xs text-primary font-bold uppercase mb-1">📰 Importado</p>
-                <p className="text-sm text-primary/90">
-                  Fonte: <strong>{formData.sourceName}</strong>
-                </p>
-              </div>
-            )}
+            <div>
+              <label className="text-sm font-bold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-2 justify-between">
+                <span>Subtítulo</span>
+                <button
+                  type="button"
+                  onClick={handleGenerateSubtitle}
+                  disabled={generatingSubtitle || !formData.title || !formData.content}
+                  className="px-3 py-1 bg-accent/20 hover:bg-accent/40 text-accent rounded text-xs font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {generatingSubtitle ? "Gerando..." : "Gerar com IA"}
+                </button>
+              </label>
+              <input
+                type="text"
+                value={formData.subtitle || ""}
+                onChange={(e) => setFormData((p) => ({ ...p, subtitle: e.target.value }))}
+                placeholder="Subtítulo complementar..."
+                className="w-full bg-background border border-border rounded-lg px-4 py-3 text-gray-300 focus:border-primary focus:ring-2 focus:ring-primary/50 focus:outline-none transition-all placeholder-muted-foreground/50"
+              />
+            </div>
           </div>
+
+          <div className="bg-card border border-border rounded-2xl p-8 space-y-4 shadow-sm">
+            <label className="text-sm font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+              <FileText className="w-4 h-4" /> Conteúdo do Artigo
+            </label>
+            <RichTextEditor
+              value={formData.content}
+              onChange={(v) => setFormData((p) => ({ ...p, content: v }))}
+              placeholder="Comece a escrever seu artigo aqui..."
+            />
+          </div>
+
+          {formData.sourceName && (
+            <div className="bg-primary/10 border border-primary/30 rounded-2xl p-4">
+              <p className="text-xs text-primary font-bold uppercase mb-1">📰 Importado</p>
+              <p className="text-sm text-primary/90">
+                Fonte: <strong>{formData.sourceName}</strong>
+              </p>
+            </div>
+          )}
         </main>
       </div>
 
-      {/* Confirmation modals */}
       {confirmAction && (
         <ConfirmModal
           action={confirmAction}
@@ -882,8 +1082,8 @@ export default function AdminArticleEditor() {
           isPending={isSavingAny}
           onCancel={() => setConfirmAction(null)}
           onConfirm={() => {
-            if (confirmAction === "publish") return handlePublishNow();
-            if (confirmAction === "schedule") return handleScheduleConfirm();
+            if (confirmAction === "publish")   return handlePublishNow();
+            if (confirmAction === "schedule")  return handleScheduleConfirm();
             if (confirmAction === "unpublish") return handleUnpublish();
           }}
         />
@@ -892,49 +1092,12 @@ export default function AdminArticleEditor() {
   );
 }
 
-function ChecklistItem({
-  ok,
-  label,
-  optional,
-}: {
-  ok: boolean;
-  label: string;
-  optional?: boolean;
-}) {
-  return (
-    <li className="flex items-center gap-2">
-      <span
-        className={`inline-flex items-center justify-center w-4 h-4 rounded-full text-[10px] font-bold ${
-          ok
-            ? "bg-emerald-500/20 text-emerald-400"
-            : optional
-              ? "bg-zinc-500/20 text-zinc-400"
-              : "bg-yellow-500/20 text-yellow-400"
-        }`}
-      >
-        {ok ? "✓" : optional ? "·" : "!"}
-      </span>
-      <span className={`text-xs ${ok ? "text-gray-300" : "text-muted-foreground"}`}>
-        {label}
-        {optional && !ok && (
-          <span className="text-muted-foreground/60"> (opcional)</span>
-        )}
-      </span>
-    </li>
-  );
-}
-
 function ConfirmModal({
-  action,
-  formData,
-  tempScheduledAt,
-  isPending,
-  onCancel,
-  onConfirm,
+  action, formData, tempScheduledAt, isPending, onCancel, onConfirm,
 }: {
   action: "publish" | "schedule" | "unpublish";
   formData: any;
-  tempScheduledAt: string;
+  tempScheduledAt: string | null;
   isPending: boolean;
   onCancel: () => void;
   onConfirm: () => void;
@@ -956,8 +1119,7 @@ function ConfirmModal({
     },
     unpublish: {
       title: "Despublicar artigo?",
-      message:
-        "O artigo voltará para rascunho e será removido do site, mas o conteúdo será preservado.",
+      message: "O artigo voltará para rascunho e será removido do site, mas o conteúdo será preservado.",
       confirmLabel: "Despublicar",
       confirmClass: "bg-zinc-700 hover:bg-zinc-600",
       icon: <Undo2 className="w-5 h-5" />,
@@ -965,14 +1127,8 @@ function ConfirmModal({
   }[action];
 
   return (
-    <div
-      className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
-      onClick={onCancel}
-    >
-      <div
-        className="bg-card border border-border rounded-2xl p-6 max-w-md w-full shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4" onClick={onCancel}>
+      <div className="bg-card border border-border rounded-2xl p-6 max-w-md w-full shadow-2xl" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-start gap-3 mb-4">
           <div className="w-10 h-10 rounded-full bg-primary/15 text-primary flex items-center justify-center flex-shrink-0">
             {config.icon}
@@ -983,9 +1139,7 @@ function ConfirmModal({
           </div>
         </div>
         <div className="bg-background border border-border rounded-lg p-3 mb-4">
-          <p className="text-xs text-muted-foreground uppercase font-bold mb-1">
-            Artigo
-          </p>
+          <p className="text-xs text-muted-foreground uppercase font-bold mb-1">Artigo</p>
           <p className="text-sm text-white font-bold line-clamp-2">{formData.title}</p>
           {formData.subtitle && (
             <p className="text-xs text-gray-400 mt-1 line-clamp-1">{formData.subtitle}</p>
