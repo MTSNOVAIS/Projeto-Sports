@@ -1,13 +1,77 @@
 import React from "react";
-import { useListArticles } from "@/hooks/use-articles";
+import { useListArticles, usePublicColumnists } from "@/hooks/use-articles";
 import { useFeaturedMatch } from "@/hooks/use-matches";
 import { useSofascoreEvent } from "@/hooks/use-sofascore";
 import { ArticleCard } from "@/components/shared/ArticleCard";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { Link } from "wouter";
-import { AlertCircle, Flame, Circle, ChevronRight, Trophy } from "lucide-react";
+import { AlertCircle, Flame, Circle, ChevronRight, Trophy, Mic } from "lucide-react";
 import { motion } from "framer-motion";
+
+function ColunistasSection() {
+  const { data: columnists = [], isLoading } = usePublicColumnists();
+
+  if (isLoading) {
+    return (
+      <div className="border-t border-border pt-8">
+        <div className="h-32 bg-card/30 rounded-xl animate-pulse" />
+      </div>
+    );
+  }
+  if (columnists.length === 0) return null;
+
+  return (
+    <div className="border-t border-border pt-8">
+      <div className="flex items-center justify-between mb-6 border-b border-border pb-4">
+        <h2 className="font-display text-2xl flex items-center gap-2">
+          <Mic className="w-5 h-5 text-primary" />
+          Nossos <span className="text-primary">Colunistas</span>
+        </h2>
+        <Link
+          href="/colunistas"
+          className="text-sm text-muted-foreground hover:text-white transition-colors font-bold"
+        >
+          Ver todos →
+        </Link>
+      </div>
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+        {columnists.slice(0, 6).map((c) => (
+          <Link
+            key={c.id}
+            href={c.slug ? `/colunistas/${c.slug}` : "#"}
+            className="group bg-card border border-border rounded-xl p-4 hover:border-primary/50 transition-colors text-center"
+          >
+            <div className="w-16 h-16 mx-auto rounded-full overflow-hidden bg-background border border-border flex items-center justify-center mb-3">
+              {c.avatarUrl ? (
+                <img
+                  src={c.avatarUrl}
+                  alt={c.name}
+                  className="w-full h-full object-cover"
+                  onError={(e) =>
+                    ((e.target as HTMLImageElement).style.display = "none")
+                  }
+                />
+              ) : (
+                <span className="text-xl font-display font-black text-muted-foreground">
+                  {c.name.charAt(0).toUpperCase()}
+                </span>
+              )}
+            </div>
+            <p className="font-display font-black text-sm text-white group-hover:text-primary transition-colors truncate">
+              {c.name}
+            </p>
+            {c.title && (
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground mt-1 truncate">
+                {c.title}
+              </p>
+            )}
+          </Link>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 function FeaturedMatchCard({ sofascoreId }: { sofascoreId: number }) {
   const { data, isLoading } = useSofascoreEvent(sofascoreId);
@@ -189,6 +253,9 @@ export default function Home() {
                     ))}
                   </div>
                 </div>
+
+                {/* Colunistas */}
+                <ColunistasSection />
               </div>
 
               {/* Sidebar */}

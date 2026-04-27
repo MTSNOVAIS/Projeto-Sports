@@ -73,9 +73,11 @@ router.get("/articles", async (req, res): Promise<void> => {
   const teamId = req.query.teamId ? parseInt(String(req.query.teamId), 10) : undefined;
   const featured = req.query.featured !== undefined ? req.query.featured === "true" : undefined;
   const search = req.query.search as string | undefined;
+  const kind = (req.query.kind as string | undefined) ?? "article";
 
   const conditions: any[] = [];
 
+  if (kind && kind !== "all") conditions.push(eq(articlesTable.kind, kind));
   if (category) conditions.push(eq(articlesTable.category, category));
   if (teamId) conditions.push(eq(articlesTable.teamId, teamId));
   if (featured !== undefined) conditions.push(eq(articlesTable.featured, featured));
@@ -104,6 +106,9 @@ router.get("/articles", async (req, res): Promise<void> => {
       breakingNews: articlesTable.breakingNews,
       category: articlesTable.category,
       authorName: articlesTable.authorName,
+      authorId: articlesTable.authorId,
+      coAuthors: articlesTable.coAuthors,
+      kind: articlesTable.kind,
       teamId: articlesTable.teamId,
       teamName: teamsTable.name,
       teamSlug: teamsTable.slug,
@@ -156,6 +161,9 @@ router.get("/articles/:slug", async (req, res): Promise<void> => {
     breakingNews: articlesTable.breakingNews,
     category: articlesTable.category,
     authorName: articlesTable.authorName,
+    authorId: articlesTable.authorId,
+    coAuthors: articlesTable.coAuthors,
+    kind: articlesTable.kind,
     teamId: articlesTable.teamId,
     teamName: teamsTable.name,
     teamSlug: teamsTable.slug,
@@ -203,11 +211,16 @@ router.get("/admin/articles", async (req, res): Promise<void> => {
   const source = req.query.source as string | undefined;
   const search = req.query.search as string | undefined;
 
+  const kind = req.query.kind as string | undefined;
+  const authorId = req.query.authorId ? parseInt(String(req.query.authorId), 10) : undefined;
+
   const conditions = [];
   if (status) conditions.push(eq(articlesTable.status, status));
   if (category) conditions.push(eq(articlesTable.category, category));
   if (teamId) conditions.push(eq(articlesTable.teamId, teamId));
   if (source) conditions.push(eq(articlesTable.sourceName, source));
+  if (kind && kind !== "all") conditions.push(eq(articlesTable.kind, kind));
+  if (authorId) conditions.push(eq(articlesTable.authorId, authorId));
   if (search) {
     conditions.push(
       or(
@@ -233,6 +246,9 @@ router.get("/admin/articles", async (req, res): Promise<void> => {
       breakingNews: articlesTable.breakingNews,
       category: articlesTable.category,
       authorName: articlesTable.authorName,
+      authorId: articlesTable.authorId,
+      coAuthors: articlesTable.coAuthors,
+      kind: articlesTable.kind,
       teamId: articlesTable.teamId,
       teamName: teamsTable.name,
       teamSlug: teamsTable.slug,
@@ -286,6 +302,9 @@ router.get("/admin/articles/:id", async (req, res): Promise<void> => {
     breakingNews: articlesTable.breakingNews,
     category: articlesTable.category,
     authorName: articlesTable.authorName,
+    authorId: articlesTable.authorId,
+    coAuthors: articlesTable.coAuthors,
+    kind: articlesTable.kind,
     teamId: articlesTable.teamId,
     teamName: teamsTable.name,
     teamSlug: teamsTable.slug,
@@ -316,7 +335,7 @@ router.get("/admin/articles/:id", async (req, res): Promise<void> => {
 });
 
 router.post("/admin/articles", async (req, res): Promise<void> => {
-  const { title, subtitle, excerpt, content, coverImage, status, featured, breakingNews, category, authorName, teamId, sourceUrl, sourceName, scheduledAt } = req.body;
+  const { title, subtitle, excerpt, content, coverImage, status, featured, breakingNews, category, authorName, authorId, coAuthors, kind, teamId, sourceUrl, sourceName, scheduledAt } = req.body;
 
   if (!title || !excerpt || !content) {
     res.status(400).json({ error: "title, excerpt and content are required" });
@@ -332,6 +351,20 @@ router.post("/admin/articles", async (req, res): Promise<void> => {
   const publishedAt = status === "published" ? new Date() : undefined;
   const scheduledAtDate = scheduledAt ? new Date(scheduledAt) : undefined;
 
+  const sanitizedCoAuthors = Array.isArray(coAuthors)
+    ? coAuthors
+        .filter((c: any) => c && typeof c.name === "string" && c.name.trim())
+        .map((c: any) => ({
+          id: c.id ? String(c.id) : undefined,
+          name: String(c.name).trim(),
+          email: typeof c.email === "string" ? c.email : undefined,
+          external: c.external === true,
+        }))
+    : [];
+
+  const safeKind = kind === "column" ? "column" : "article";
+  const safeAuthorId = typeof authorId === "number" && Number.isFinite(authorId) ? authorId : null;
+
   const [article] = await db.insert(articlesTable).values({
     title: cleanTitle,
     slug,
@@ -344,6 +377,9 @@ router.post("/admin/articles", async (req, res): Promise<void> => {
     breakingNews: breakingNews || false,
     category: category || "La Liga",
     authorName: authorName || "Redação",
+    authorId: safeAuthorId,
+    coAuthors: sanitizedCoAuthors,
+    kind: safeKind,
     teamId: teamId || null,
     sourceUrl: sourceUrl || null,
     sourceName: sourceName || null,
@@ -366,13 +402,24 @@ router.put("/admin/articles/:id", async (req, res): Promise<void> => {
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const id = parseInt(raw, 10);
 
-  const { title, subtitle, excerpt, content, coverImage, status, featured, breakingNews, category, authorName, teamId, sourceUrl, sourceName, scheduledAt } = req.body;
+  const { title, subtitle, excerpt, content, coverImage, status, featured, breakingNews, category, authorName, authorId, coAuthors, kind, teamId, sourceUrl, sourceName, scheduledAt } = req.body;
 
   const existing = await db.select().from(articlesTable).where(eq(articlesTable.id, id));
   if (!existing.length) {
     res.status(404).json({ error: "Article not found" });
     return;
   }
+
+  const sanitizedCoAuthors = Array.isArray(coAuthors)
+    ? coAuthors
+        .filter((c: any) => c && typeof c.name === "string" && c.name.trim())
+        .map((c: any) => ({
+          id: c.id ? String(c.id) : undefined,
+          name: String(c.name).trim(),
+          email: typeof c.email === "string" ? c.email : undefined,
+          external: c.external === true,
+        }))
+    : undefined;
 
   // Strip HTML tags from all text fields
   const updateData: Partial<typeof articlesTable.$inferInsert> = {
@@ -390,6 +437,11 @@ router.put("/admin/articles/:id", async (req, res): Promise<void> => {
     sourceUrl: sourceUrl || null,
     sourceName: sourceName || null,
   };
+
+  if (sanitizedCoAuthors !== undefined) updateData.coAuthors = sanitizedCoAuthors;
+  if (kind === "column" || kind === "article") updateData.kind = kind;
+  if (typeof authorId === "number" && Number.isFinite(authorId)) updateData.authorId = authorId;
+  else if (authorId === null) updateData.authorId = null;
 
   if (scheduledAt) {
     updateData.scheduledAt = new Date(scheduledAt);

@@ -19,7 +19,9 @@ import AdminTeamsList from "@/pages/admin/teams-list";
 import AdminTeamEditor from "@/pages/admin/team-editor";
 import AdminUsersList from "@/pages/admin/users-list";
 import AdminRolesList from "@/pages/admin/roles-list";
-import AdminColunistas from "@/pages/admin/colunistas";
+import AdminColunas from "@/pages/admin/colunas";
+import ColunistasIndexPage from "@/pages/colunistas";
+import ColunistaDetailPage from "@/pages/colunista";
 import AdminMatches from "@/pages/admin/matches";
 import AdminHighlights from "@/pages/admin/highlights";
 import AdminLeagues from "@/pages/admin/leagues";
@@ -46,6 +48,8 @@ function Router() {
       <Route path="/categoria/:category" component={CategoryPage} />
       <Route path="/busca" component={SearchPage} />
       <Route path="/login" component={LoginPage} />
+      <Route path="/colunistas" component={ColunistasIndexPage} />
+      <Route path="/colunistas/:slug" component={ColunistaDetailPage} />
       <Route path="/resultados" component={ResultsPage} />
       <Route path="/partidas/:id" component={MatchPage} />
 
@@ -79,9 +83,9 @@ function Router() {
           <AdminTeamEditor />
         </ProtectedRoute>
       </Route>
-      <Route path="/dashboard/colunistas">
+      <Route path="/dashboard/colunas">
         <ProtectedRoute>
-          <AdminColunistas />
+          <AdminColunas />
         </ProtectedRoute>
       </Route>
       <Route path="/dashboard/usuarios">

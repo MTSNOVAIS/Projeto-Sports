@@ -427,7 +427,7 @@ function AuthorPicker({
 type SettingsTab = "geral" | "destaques" | "capa" | "autoria";
 
 function SettingsPanel({
-  tab, setTab, formData, setFormData, teams, accounts, accountsLoading,
+  tab, setTab, formData, setFormData, teams, accounts, accountsLoading, canPublishColumns,
 }: any) {
   const tabs: { id: SettingsTab; label: string; icon: React.ReactNode }[] = [
     { id: "geral",     label: "Geral",     icon: <Tag className="w-3.5 h-3.5" /> },
@@ -459,6 +459,40 @@ function SettingsPanel({
       <div className="p-4 max-h-[60vh] overflow-y-auto">
         {tab === "geral" && (
           <div className="space-y-4">
+            {canPublishColumns && (
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2">
+                  Tipo de publicação
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setFormData((p: any) => ({ ...p, kind: "article" }))}
+                    className={`px-3 py-2.5 rounded-lg border text-sm font-bold uppercase tracking-wider transition-colors ${
+                      (formData.kind ?? "article") === "article"
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-border bg-background text-muted-foreground hover:text-white"
+                    }`}
+                  >
+                    Artigo
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFormData((p: any) => ({ ...p, kind: "column" }))}
+                    className={`px-3 py-2.5 rounded-lg border text-sm font-bold uppercase tracking-wider transition-colors ${
+                      formData.kind === "column"
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-border bg-background text-muted-foreground hover:text-white"
+                    }`}
+                  >
+                    Coluna
+                  </button>
+                </div>
+                <p className="text-[11px] text-muted-foreground mt-2">
+                  Colunas aparecem na seção de colunistas. Artigos vão para a página de notícias.
+                </p>
+              </div>
+            )}
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2">
                 Categoria
@@ -565,6 +599,8 @@ function SettingsPanel({
 interface EditorFormState extends CreateArticleRequest {
   subtitle?: string;
   coAuthorList?: CoAuthor[];
+  kind?: "article" | "column";
+  authorId?: number | null;
 }
 
 export default function AdminArticleEditor() {
@@ -576,7 +612,7 @@ export default function AdminArticleEditor() {
   const isEditing    = !!editParams?.id;
   const articleId    = isEditing ? parseInt(editParams!.id) : undefined;
 
-  const { user } = useAuth();
+  const { user, canAccessColumns } = useAuth();
   const { data: existingArticle, isLoading: loadingArticle } = useAdminGetArticle(
     articleId as number,
     { query: { enabled: isEditing } },
@@ -607,6 +643,8 @@ export default function AdminArticleEditor() {
     sourceName: "",
     sourceUrl: "",
     coAuthorList: [],
+    kind: "article",
+    authorId: null,
   });
 
   const [generatingSubtitle, setGeneratingSubtitle] = useState(false);
@@ -640,7 +678,9 @@ export default function AdminArticleEditor() {
         scheduledAt:  existingArticle.scheduledAt || null,
         sourceName:   existingArticle.sourceName || "",
         sourceUrl:    existingArticle.sourceUrl || "",
-        coAuthorList: [],
+        coAuthorList: ((existingArticle as any).coAuthors as CoAuthor[] | undefined) ?? [],
+        kind:         (((existingArticle as any).kind as "article" | "column" | undefined) ?? "article"),
+        authorId:     ((existingArticle as any).authorId as number | null | undefined) ?? null,
       });
       setPersistedStatus(existingArticle.status);
       setArticleSlug(existingArticle.slug);
@@ -650,9 +690,24 @@ export default function AdminArticleEditor() {
 
   useEffect(() => {
     if (!isEditing && user && formData.authorName === "Redação La Liga Brasil") {
-      setFormData((p) => ({ ...p, authorName: user.name }));
+      setFormData((p) => ({
+        ...p,
+        authorName: user.name,
+        authorId: Number(user.id) || null,
+      }));
     }
   }, [user, isEditing]);
+
+  // Default to "column" kind when ?kind=column is in the URL (new article only)
+  useEffect(() => {
+    if (isEditing) return;
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("kind") === "column") {
+      setFormData((p) => ({ ...p, kind: "column" }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isEditing]);
 
   const validation = useMemo(() => {
     const issues: { field: string; message: string }[] = [];
@@ -690,7 +745,7 @@ export default function AdminArticleEditor() {
   };
 
   function buildPayload(forceStatus?: CreateArticleRequestStatus): CreateArticleRequest {
-    const { coAuthorList, subtitle, ...rest } = formData;
+    const { coAuthorList, subtitle, kind, authorId, ...rest } = formData;
     const payload: any = { ...rest, subtitle };
     if (forceStatus) payload.status = forceStatus;
     if (payload.teamId) payload.teamId = Number(payload.teamId);
@@ -701,6 +756,15 @@ export default function AdminArticleEditor() {
         payload.excerpt = plain.substring(0, 200).trim() + (plain.length > 200 ? "..." : "");
       }
     }
+    payload.kind = kind === "column" ? "column" : "article";
+    payload.authorId =
+      typeof authorId === "number" && Number.isFinite(authorId) ? authorId : null;
+    payload.coAuthors = (coAuthorList ?? []).map((c) => ({
+      id: c.id,
+      name: c.name,
+      email: c.email ?? null,
+      external: !!c.external,
+    }));
     return payload;
   }
 
@@ -913,6 +977,7 @@ export default function AdminArticleEditor() {
                     teams={teams}
                     accounts={accounts}
                     accountsLoading={accountsLoading}
+                    canPublishColumns={canAccessColumns}
                   />
                 </div>
               )}

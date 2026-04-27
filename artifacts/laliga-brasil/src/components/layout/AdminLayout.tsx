@@ -10,7 +10,7 @@ interface AdminLayoutProps {
 
 export function AdminLayout({ children }: AdminLayoutProps) {
   const [location] = useLocation();
-  const { user, logout } = useAuth();
+  const { user, logout, isAdmin, canAccessColumns } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -21,9 +21,15 @@ export function AdminLayout({ children }: AdminLayoutProps) {
     { href: "/dashboard/partidas", label: "Partidas" },
     { href: "/dashboard/ligas", label: "Ligas" },
     { href: "/dashboard/times", label: "Times" },
-    { href: "/dashboard/colunistas", label: "Colunistas" },
-    { href: "/dashboard/usuarios", label: "Usuários" },
-    { href: "/dashboard/cargos", label: "Cargos" },
+    ...(canAccessColumns
+      ? [{ href: "/dashboard/colunas", label: "Colunas" }]
+      : []),
+    ...(isAdmin
+      ? [
+          { href: "/dashboard/usuarios", label: "Usuários" },
+          { href: "/dashboard/cargos", label: "Cargos" },
+        ]
+      : []),
   ];
 
   // Fechar menu ao navegar

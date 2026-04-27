@@ -7,6 +7,12 @@ export interface User {
   name: string;
   email: string;
   role: UserRole;
+  isColumnist?: boolean;
+  columnistSlug?: string | null;
+  columnistTitle?: string | null;
+  bio?: string | null;
+  avatarUrl?: string | null;
+  twitter?: string | null;
 }
 
 interface AuthContextType {
@@ -14,64 +20,71 @@ interface AuthContextType {
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
+  refreshUser: () => Promise<void>;
   isAuthenticated: boolean;
+  isAdmin: boolean;
+  canAccessColumns: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Usuários hardcoded para demo - você pode conectar a um banco de dados depois
-const DEMO_USERS: Record<string, { password: string; user: User }> = {
-  "editor@laliga.com": {
-    password: "editor123",
-    user: {
-      id: "1",
-      name: "Editor",
-      email: "editor@laliga.com",
-      role: "editor",
-    },
-  },
-  "admin@laliga.com": {
-    password: "admin123",
-    user: {
-      id: "2",
-      name: "Admin",
-      email: "admin@laliga.com",
-      role: "admin",
-    },
-  },
-};
+const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
+
+const STORAGE_KEY = "laliga_user";
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Carregar usuário do localStorage ao montar
   useEffect(() => {
-    const storedUser = localStorage.getItem("laliga_user");
-    if (storedUser) {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) {
       try {
-        setUser(JSON.parse(storedUser));
+        setUser(JSON.parse(stored));
       } catch {
-        localStorage.removeItem("laliga_user");
+        localStorage.removeItem(STORAGE_KEY);
       }
     }
     setIsLoading(false);
   }, []);
 
-  const login = async (email: string, password: string) => {
-    const credentials = DEMO_USERS[email];
-    if (!credentials || credentials.password !== password) {
-      throw new Error("Email ou senha inválidos");
-    }
-    
-    setUser(credentials.user);
-    localStorage.setItem("laliga_user", JSON.stringify(credentials.user));
+  const persist = (next: User | null) => {
+    setUser(next);
+    if (next) localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+    else localStorage.removeItem(STORAGE_KEY);
   };
 
-  const logout = () => {
-    setUser(null);
-    localStorage.removeItem("laliga_user");
+  const login = async (email: string, password: string) => {
+    const res = await fetch(`${BASE}/api/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data?.error ?? "E-mail ou senha inválidos");
+    }
+    const data: User = await res.json();
+    persist(data);
   };
+
+  const logout = () => persist(null);
+
+  const refreshUser = async () => {
+    if (!user) return;
+    try {
+      const res = await fetch(`${BASE}/api/auth/me/${user.id}`);
+      if (res.ok) {
+        const data: User = await res.json();
+        persist(data);
+      }
+    } catch {
+      /* ignore */
+    }
+  };
+
+  const isAdmin = user?.role === "admin";
+  const canAccessColumns = !!user && (user.isColumnist === true || isAdmin);
 
   return (
     <AuthContext.Provider
@@ -80,7 +93,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isLoading,
         login,
         logout,
+        refreshUser,
         isAuthenticated: !!user,
+        isAdmin,
+        canAccessColumns,
       }}
     >
       {children}

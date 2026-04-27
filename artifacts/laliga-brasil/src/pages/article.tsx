@@ -78,7 +78,14 @@ export default function ArticleView() {
             <div className="flex flex-wrap items-center justify-between gap-4 text-sm text-muted-foreground font-medium py-4 border-t border-border">
               <div className="flex flex-wrap items-center gap-6">
                 <span className="flex items-center gap-2 text-white">
-                  <User className="w-4 h-4 text-primary" /> {article.authorName}
+                  <User className="w-4 h-4 text-primary" />
+                  {(() => {
+                    const co = ((article as any).coAuthors ?? []) as Array<{ name: string }>;
+                    const names = [article.authorName, ...co.map((c) => c.name)];
+                    if (names.length === 1) return names[0];
+                    if (names.length === 2) return `${names[0]} e ${names[1]}`;
+                    return `${names.slice(0, -1).join(", ")} e ${names[names.length - 1]}`;
+                  })()}
                 </span>
                 {dateStr && (
                   <span className="flex items-center gap-2">

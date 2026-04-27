@@ -1,7 +1,15 @@
-import { pgTable, text, serial, integer, boolean, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { teamsTable } from "./teams";
+import { usersTable } from "./users";
+
+export interface CoAuthorEntry {
+  id?: string;
+  name: string;
+  email?: string;
+  external?: boolean;
+}
 
 export const articlesTable = pgTable("articles", {
   id: serial("id").primaryKey(),
@@ -16,6 +24,9 @@ export const articlesTable = pgTable("articles", {
   breakingNews: boolean("breaking_news").notNull().default(false),
   category: text("category").notNull().default("La Liga"),
   authorName: text("author_name").notNull().default("Redação"),
+  authorId: integer("author_id").references(() => usersTable.id),
+  coAuthors: jsonb("co_authors").$type<CoAuthorEntry[]>().notNull().default([]),
+  kind: text("kind").notNull().default("article"),
   teamId: integer("team_id").references(() => teamsTable.id),
   sourceUrl: text("source_url"),
   sourceName: text("source_name"),

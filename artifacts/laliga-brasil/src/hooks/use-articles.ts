@@ -148,6 +148,87 @@ export interface UpdateAccountVars {
   active?: boolean;
 }
 
+export interface PublicColumnist {
+  id: string;
+  name: string;
+  slug: string | null;
+  title: string | null;
+  bio: string | null;
+  avatarUrl: string | null;
+  twitter: string | null;
+}
+
+export function usePublicColumnists() {
+  return useQuery({
+    queryKey: ["/columnists"],
+    queryFn: async (): Promise<PublicColumnist[]> => {
+      const res = await fetch(`${BASE}/api/columnists`);
+      if (!res.ok) throw new Error("Falha ao carregar colunistas");
+      return res.json();
+    },
+    staleTime: 60_000,
+  });
+}
+
+export interface ColumnSummary {
+  id: number;
+  title: string;
+  slug: string;
+  subtitle?: string | null;
+  excerpt: string;
+  coverImage?: string | null;
+  category: string;
+  authorName: string;
+  authorId?: number | null;
+  authorSlug?: string | null;
+  authorAvatarUrl?: string | null;
+  publishedAt: string | null;
+  viewCount: number;
+}
+
+export interface ColumnsListResponse {
+  columns: ColumnSummary[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+export function useColumns(params: { authorId?: number; limit?: number } = {}) {
+  const { authorId, limit } = params;
+  const search = new URLSearchParams();
+  if (authorId) search.set("authorId", String(authorId));
+  if (limit) search.set("limit", String(limit));
+  const qs = search.toString();
+  return useQuery({
+    queryKey: ["/columns", { authorId, limit }],
+    queryFn: async (): Promise<ColumnsListResponse> => {
+      const res = await fetch(`${BASE}/api/columns${qs ? `?${qs}` : ""}`);
+      if (!res.ok) throw new Error("Falha ao carregar colunas");
+      return res.json();
+    },
+    staleTime: 30_000,
+  });
+}
+
+export interface ColumnistDetailResponse {
+  columnist: PublicColumnist;
+  columns: ColumnSummary[];
+}
+
+export function useColumnistBySlug(slug: string | undefined) {
+  return useQuery({
+    queryKey: ["/columnists", slug],
+    enabled: !!slug,
+    queryFn: async (): Promise<ColumnistDetailResponse> => {
+      const res = await fetch(`${BASE}/api/columnists/${slug}`);
+      if (!res.ok) throw new Error("Colunista não encontrado");
+      return res.json();
+    },
+    staleTime: 30_000,
+  });
+}
+
 export function useUpdateAccount() {
   const queryClient = useQueryClient();
   return useMutation({

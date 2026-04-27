@@ -38,6 +38,17 @@ A full-stack Brazilian news site about Spanish football (La Liga). Built with Re
 - **Teams list** (/times): Grid of all La Liga clubs
 - **Team page** (/times/:slug): Team profile with info and recent articles
 - **Category pages** (/categoria/:category): Articles filtered by category
+- **Columnists index** (/colunistas): Public grid of all columnists with avatar, bio, and social
+- **Columnist profile** (/colunistas/:slug): Individual columnist page with bio + their published columns
+- **Homepage Colunistas section**: Featured columnists card grid linking to profiles
+
+### Admin / CMS
+- **Colunas** (/dashboard/colunas): Tabbed area for columnists — "Minhas colunas" (my published columns), "Meu perfil" (edit own bio/avatar/twitter/slug), "Gerenciar colunistas" (admin-only, toggle who is a columnist and edit their profile)
+- **Article editor**: Type toggle (Artigo / Coluna) for columnists; co-authors with persisted display on article pages
+
+### Auth
+- DB-backed login via `POST /api/auth/login` (demo accounts: editor@laliga.com/editor123, admin@laliga.com/admin123)
+- AuthContext exposes `isAdmin` and `canAccessColumns` (columnist OR admin) flags driving nav visibility
 - **Search** (/busca): Real-time article search
 
 ### Dashboard (/dashboard)

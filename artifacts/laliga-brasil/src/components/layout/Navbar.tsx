@@ -15,8 +15,9 @@ export function Navbar() {
   const links = [
     { href: "/", label: "Home" },
     { href: "/times", label: "Times" },
-    { href: "/busca", label: "Busca" },
+    { href: "/colunistas", label: "Colunistas" },
     { href: "/resultados", label: "Resultados" },
+    { href: "/busca", label: "Busca" },
   ];
 
   // Fechar menu quando navega ou clica fora
