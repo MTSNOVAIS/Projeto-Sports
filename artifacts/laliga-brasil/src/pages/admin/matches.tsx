@@ -17,6 +17,7 @@ import {
   Plus, Trash2, Eye, EyeOff, Star, StarOff, Circle, ChevronDown, ChevronUp, X,
   Trophy, Users, Hash, CheckSquare, Square,
 } from "lucide-react";
+import { CustomSelect } from "@/components/ui/custom-select";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 

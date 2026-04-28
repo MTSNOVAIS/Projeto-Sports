@@ -26,6 +26,7 @@ import {
   type AdminRole,
 } from "@/hooks/use-articles";
 import { useAuth } from "@/contexts/AuthContext";
+import { CustomSelect } from "@/components/ui/custom-select";
 
 type RoleKey = "admin" | "editor" | "viewer";
 
@@ -613,25 +614,19 @@ function CreateUserModal({
           </div>
           <div>
             <FieldLabel>Cargo</FieldLabel>
-            <select
+            <CustomSelect
               value={form.role}
-              onChange={(e) => update("role", e.target.value)}
-              className={inputClass}
-            >
-              {roles.length > 0 ? (
-                roles.map((r) => (
-                  <option key={r.key} value={r.key}>
-                    {r.name}
-                  </option>
-                ))
-              ) : (
-                <>
-                  <option value="viewer">Visualizador</option>
-                  <option value="editor">Editor</option>
-                  <option value="admin">Administrador</option>
-                </>
-              )}
-            </select>
+              onChange={(v) => update("role", v)}
+              options={
+                roles.length > 0
+                  ? roles.map((r) => ({ value: r.key, label: r.name }))
+                  : [
+                      { value: "viewer", label: "Visualizador" },
+                      { value: "editor", label: "Editor" },
+                      { value: "admin", label: "Administrador" },
+                    ]
+              }
+            />
           </div>
         </div>
 
@@ -821,25 +816,19 @@ function EditUserModal({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <FieldLabel>Cargo</FieldLabel>
-            <select
+            <CustomSelect
               value={form.role}
-              onChange={(e) => update("role", e.target.value)}
-              className={inputClass}
-            >
-              {roles.length > 0 ? (
-                roles.map((r) => (
-                  <option key={r.key} value={r.key}>
-                    {r.name}
-                  </option>
-                ))
-              ) : (
-                <>
-                  <option value="viewer">Visualizador</option>
-                  <option value="editor">Editor</option>
-                  <option value="admin">Administrador</option>
-                </>
-              )}
-            </select>
+              onChange={(v) => update("role", v)}
+              options={
+                roles.length > 0
+                  ? roles.map((r) => ({ value: r.key, label: r.name }))
+                  : [
+                      { value: "viewer", label: "Visualizador" },
+                      { value: "editor", label: "Editor" },
+                      { value: "admin", label: "Administrador" },
+                    ]
+              }
+            />
           </div>
           <div>
             <FieldLabel>

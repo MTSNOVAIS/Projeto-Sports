@@ -11,6 +11,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { useAdminLeagues } from "@/hooks/use-leagues";
 import { sofascoreSearch, teamImageUrl } from "@/hooks/use-sofascore";
+import { CustomSelect } from "@/components/ui/custom-select";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -472,16 +473,18 @@ export default function AdminTeamEditor() {
               <div className="space-y-4">
                 <div>
                   <label className="block text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5">Liga</label>
-                  <select
-                    value={team.leagueId || ""}
-                    onChange={e => set("leagueId", e.target.value ? Number(e.target.value) : null as any)}
-                    className="w-full bg-background border border-border rounded-lg px-3 py-2.5 text-white text-sm focus:border-primary focus:outline-none transition-colors"
-                  >
-                    <option value="">— Sem liga associada —</option>
-                    {(leagues as any[]).map((l: any) => (
-                      <option key={l.id} value={l.id}>{l.name}</option>
-                    ))}
-                  </select>
+                  <CustomSelect
+                    value={team.leagueId ? String(team.leagueId) : ""}
+                    onChange={(v) => set("leagueId", v ? (Number(v) as any) : (null as any))}
+                    placeholder="— Sem liga associada —"
+                    options={[
+                      { value: "", label: "— Sem liga associada —" },
+                      ...(leagues as any[]).map((l: any) => ({
+                        value: String(l.id),
+                        label: l.name,
+                      })),
+                    ]}
+                  />
                 </div>
                 <SofascoreTeamSearch
                   currentId={team.sofascoreId}
@@ -549,14 +552,14 @@ export default function AdminTeamEditor() {
                   <h3 className="text-sm font-bold text-white">Adicionar título</h3>
                   <div>
                     <label className="block text-xs text-muted-foreground uppercase tracking-wider mb-1">Competição</label>
-                    <select
+                    <CustomSelect
                       value={newTitle.competition}
-                      onChange={e => setNewTitle(p => ({ ...p, competition: e.target.value }))}
-                      className="w-full bg-card border border-border rounded-lg px-3 py-2 text-white text-sm focus:border-primary focus:outline-none"
-                    >
-                      {TITLE_COMPETITIONS.map(c => <option key={c} value={c}>{c}</option>)}
-                      <option value="__custom">Outra competição...</option>
-                    </select>
+                      onChange={(v) => setNewTitle(p => ({ ...p, competition: v }))}
+                      options={[
+                        ...TITLE_COMPETITIONS.map(c => ({ value: c, label: c })),
+                        { value: "__custom", label: "Outra competição..." },
+                      ]}
+                    />
                   </div>
                   {newTitle.competition === "__custom" && (
                     <input
