@@ -644,7 +644,7 @@ export default function AdminArticleEditor() {
     sourceUrl: "",
     coAuthorList: [],
     kind: "article",
-    authorId: null,
+    authorId: user ? Number(user.id) || null : null,
   });
 
   const [generatingSubtitle, setGeneratingSubtitle] = useState(false);
@@ -689,13 +689,17 @@ export default function AdminArticleEditor() {
   }, [existingArticle]);
 
   useEffect(() => {
-    if (!isEditing && user && formData.authorName === "Redação La Liga Brasil") {
-      setFormData((p) => ({
+    if (isEditing || !user) return;
+    setFormData((p) => {
+      const needsName = p.authorName === "Redação La Liga Brasil" || !p.authorName;
+      const needsId = p.authorId == null && p.authorName === user.name;
+      if (!needsName && !needsId) return p;
+      return {
         ...p,
-        authorName: user.name,
+        authorName: needsName ? user.name : p.authorName,
         authorId: Number(user.id) || null,
-      }));
-    }
+      };
+    });
   }, [user, isEditing]);
 
   // Default to "column" kind when ?kind=column is in the URL (new article only)

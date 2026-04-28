@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { db, articlesTable, teamsTable } from "@workspace/db";
+import { db, articlesTable, teamsTable, usersTable } from "@workspace/db";
 import { eq, and, desc, like, or, ilike, sql, count } from "drizzle-orm";
 
 const router: IRouter = Router();
@@ -363,7 +363,17 @@ router.post("/admin/articles", async (req, res): Promise<void> => {
     : [];
 
   const safeKind = kind === "column" ? "column" : "article";
-  const safeAuthorId = typeof authorId === "number" && Number.isFinite(authorId) ? authorId : null;
+  let safeAuthorId = typeof authorId === "number" && Number.isFinite(authorId) ? authorId : null;
+
+  // Fallback: when authorId is missing but authorName matches a real user, link them
+  if (safeAuthorId === null && authorName) {
+    const [match] = await db
+      .select({ id: usersTable.id })
+      .from(usersTable)
+      .where(eq(usersTable.name, String(authorName).trim()))
+      .limit(1);
+    if (match) safeAuthorId = match.id;
+  }
 
   const [article] = await db.insert(articlesTable).values({
     title: cleanTitle,
@@ -440,8 +450,17 @@ router.put("/admin/articles/:id", async (req, res): Promise<void> => {
 
   if (sanitizedCoAuthors !== undefined) updateData.coAuthors = sanitizedCoAuthors;
   if (kind === "column" || kind === "article") updateData.kind = kind;
-  if (typeof authorId === "number" && Number.isFinite(authorId)) updateData.authorId = authorId;
-  else if (authorId === null) updateData.authorId = null;
+  if (typeof authorId === "number" && Number.isFinite(authorId)) {
+    updateData.authorId = authorId;
+  } else if (authorId === null && authorName) {
+    // try to resolve by name so the column ↔ columnist link doesn't break
+    const [match] = await db
+      .select({ id: usersTable.id })
+      .from(usersTable)
+      .where(eq(usersTable.name, String(authorName).trim()))
+      .limit(1);
+    updateData.authorId = match ? match.id : null;
+  }
 
   if (scheduledAt) {
     updateData.scheduledAt = new Date(scheduledAt);
