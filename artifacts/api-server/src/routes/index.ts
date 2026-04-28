@@ -9,6 +9,7 @@ import sofascoreRouter from "./sofascore";
 import leaguesRouter from "./leagues";
 import usersRouter from "./users";
 import columnsRouter from "./columns";
+import rolesRouter from "./roles";
 import authRouter from "./auth";
 
 const router: IRouter = Router();
@@ -23,6 +24,7 @@ router.use(sofascoreRouter);
 router.use(leaguesRouter);
 router.use(usersRouter);
 router.use(columnsRouter);
+router.use(rolesRouter);
 router.use(authRouter);
 
 export default router;

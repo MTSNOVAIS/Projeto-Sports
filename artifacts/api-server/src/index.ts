@@ -1,5 +1,6 @@
 import app from "./app";
 import { ensureDemoAccounts } from "./lib/seed";
+import { ensureSystemRoles } from "./routes/roles";
 
 const rawPort = process.env["PORT"];
 
@@ -18,4 +19,5 @@ if (Number.isNaN(port) || port <= 0) {
 app.listen(port, () => {
   console.log(`Server listening on port ${port}`);
   void ensureDemoAccounts();
+  void ensureSystemRoles();
 });

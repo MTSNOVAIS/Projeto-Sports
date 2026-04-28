@@ -311,3 +311,114 @@ export function useDeleteAccount() {
     },
   });
 }
+
+// ---- Roles ----
+
+export interface AdminRole {
+  id: string;
+  key: string;
+  name: string;
+  description: string;
+  permissions: string[];
+  system: boolean;
+  createdAt?: string;
+}
+
+export function useAdminRoles() {
+  return useQuery({
+    queryKey: ["/admin/roles"],
+    queryFn: async (): Promise<AdminRole[]> => {
+      const res = await fetch(`${BASE}/api/admin/roles`);
+      if (!res.ok) throw new Error("Falha ao carregar cargos");
+      return res.json();
+    },
+    staleTime: 30_000,
+  });
+}
+
+export function useRolePermissions() {
+  return useQuery({
+    queryKey: ["/admin/roles/permissions"],
+    queryFn: async (): Promise<{ permissions: string[] }> => {
+      const res = await fetch(`${BASE}/api/admin/roles/permissions`);
+      if (!res.ok) throw new Error("Falha ao carregar permissões");
+      return res.json();
+    },
+    staleTime: 5 * 60_000,
+  });
+}
+
+export interface CreateRoleVars {
+  name: string;
+  description?: string;
+  permissions: string[];
+  key?: string;
+}
+
+export function useCreateRole() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (vars: CreateRoleVars): Promise<AdminRole> => {
+      const res = await fetch(`${BASE}/api/admin/roles`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(vars),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data?.error ?? "Falha ao criar cargo");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/admin/roles"] });
+    },
+  });
+}
+
+export interface UpdateRoleVars {
+  id: string;
+  name?: string;
+  description?: string;
+  permissions?: string[];
+}
+
+export function useUpdateRole() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (vars: UpdateRoleVars): Promise<AdminRole> => {
+      const { id, ...body } = vars;
+      const res = await fetch(`${BASE}/api/admin/roles/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data?.error ?? "Falha ao atualizar cargo");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/admin/roles"] });
+    },
+  });
+}
+
+export function useDeleteRole() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string): Promise<void> => {
+      const res = await fetch(`${BASE}/api/admin/roles/${id}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data?.error ?? "Falha ao excluir cargo");
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/admin/roles"] });
+    },
+  });
+}
