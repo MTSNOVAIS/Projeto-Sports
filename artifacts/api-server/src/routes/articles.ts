@@ -4,29 +4,18 @@ import { eq, and, desc, like, or, ilike, sql, count } from "drizzle-orm";
 
 const router: IRouter = Router();
 
-// Helper function to strip HTML tags from text
+// Strip ALL HTML tags. Use only for plain-text fields (title, subtitle, excerpt).
+// NEVER use this on `content` because that field stores rich-text HTML from the editor.
 function stripHtmlTags(text: string): string {
   let result = text;
-  
-  // Remove script tags and all their content (case-insensitive, handles multiline)
+
   result = result.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, " ");
-  
-  // Remove style tags and all their content
   result = result.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, " ");
-  
-  // Remove noscript tags and content
   result = result.replace(/<noscript[^>]*>[\s\S]*?<\/noscript>/gi, " ");
-  
-  // Remove iframe tags and content
   result = result.replace(/<iframe[^>]*>[\s\S]*?<\/iframe>/gi, " ");
-  
-  // Remove comment tags
   result = result.replace(/<!--[\s\S]*?-->/g, " ");
-  
-  // Remove all HTML tags
   result = result.replace(/<[^>]*>/g, " ");
-  
-  // Decode HTML entities
+
   result = result
     .replace(/&nbsp;/g, " ")
     .replace(/&lt;/g, "<")
@@ -38,18 +27,36 @@ function stripHtmlTags(text: string): string {
     .replace(/&#8212;/g, "—")
     .replace(/&#8211;/g, "–")
     .replace(/&apos;/g, "'")
-    .replace(/&amp;/g, "&");  // Must be last to avoid double-decoding
-  
-  // Remove any remaining code patterns
-  result = result
-    .replace(/\bvar\s+\w+\s*=\s*[^;]*;/g, "")  // var declarations
-    .replace(/\blet\s+\w+\s*=\s*[^;]*;/g, "")  // let declarations  
-    .replace(/\bconst\s+\w+\s*=\s*[^;]*;/g, "")  // const declarations
-    .replace(/\bfunction\s+\w+\s*\([^)]*\)\s*\{[^}]*\}/g, "");  // function declarations
-  
-  // Clean up multiple spaces
+    .replace(/&amp;/g, "&");
+
   result = result.replace(/\s+/g, " ").trim();
-  
+  return result;
+}
+
+// Sanitize rich-text HTML for the article body. Removes dangerous executable
+// content but PRESERVES all formatting tags (h1-h6, p, strong, em, ul, ol,
+// blockquote, a, img, etc.) so the rich text editor's output round-trips correctly.
+function sanitizeRichHtml(html: string): string {
+  if (typeof html !== "string") return "";
+  let result = html;
+
+  result = result.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "");
+  result = result.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "");
+  result = result.replace(/<noscript[^>]*>[\s\S]*?<\/noscript>/gi, "");
+  result = result.replace(/<iframe[^>]*>[\s\S]*?<\/iframe>/gi, "");
+  result = result.replace(/<!--[\s\S]*?-->/g, "");
+
+  // Strip event handlers (onclick=, onerror=, etc.) on any tag
+  result = result.replace(/\son[a-z]+\s*=\s*"(?:[^"\\]|\\.)*"/gi, "");
+  result = result.replace(/\son[a-z]+\s*=\s*'(?:[^'\\]|\\.)*'/gi, "");
+  result = result.replace(/\son[a-z]+\s*=\s*[^\s>]+/gi, "");
+
+  // Block javascript: URIs in href / src
+  result = result.replace(
+    /(\s(?:href|src)\s*=\s*)(["'])\s*javascript:[^"']*\2/gi,
+    '$1$2#$2',
+  );
+
   return result;
 }
 
@@ -346,11 +353,11 @@ router.post("/admin/articles", async (req, res): Promise<void> => {
     return;
   }
 
-  // Strip HTML tags from all text fields
+  // Strip HTML from plain-text fields, but preserve formatting in the rich-text body.
   const cleanTitle = stripHtmlTags(title);
   const cleanSubtitle = subtitle ? stripHtmlTags(subtitle) : null;
   const cleanExcerpt = stripHtmlTags(excerpt);
-  const cleanContent = stripHtmlTags(content);
+  const cleanContent = sanitizeRichHtml(content);
   const slug = generateSlug(cleanTitle);
   const publishedAt = status === "published" ? new Date() : undefined;
   const scheduledAtDate = scheduledAt ? new Date(scheduledAt) : undefined;
@@ -435,12 +442,12 @@ router.put("/admin/articles/:id", async (req, res): Promise<void> => {
         }))
     : undefined;
 
-  // Strip HTML tags from all text fields
+  // Strip HTML from plain-text fields, but preserve formatting in the rich-text body.
   const updateData: Partial<typeof articlesTable.$inferInsert> = {
     title: title ? stripHtmlTags(title) : undefined,
     subtitle: subtitle ? stripHtmlTags(subtitle) : undefined,
     excerpt: excerpt ? stripHtmlTags(excerpt) : undefined,
-    content: content ? stripHtmlTags(content) : undefined,
+    content: typeof content === "string" ? sanitizeRichHtml(content) : undefined,
     coverImage: coverImage || null,
     status,
     featured: featured || false,
