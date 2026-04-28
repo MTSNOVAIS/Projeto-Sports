@@ -51,8 +51,10 @@ export default function ColunistaDetailPage() {
       <Navbar />
       <main className="flex-grow">
         {/* Header */}
-        <section className="border-b border-border bg-card/40">
-          <div className="container mx-auto px-4 py-12">
+        <section className="relative overflow-hidden border-b border-border">
+          <div className="absolute inset-0 bg-gradient-to-br from-primary/15 via-background to-background" />
+          <div className="absolute inset-0 opacity-30 [background-image:radial-gradient(circle_at_15%_30%,rgba(219,0,55,0.35),transparent_50%)]" />
+          <div className="relative container mx-auto px-4 py-12">
             <Link
               href="/colunistas"
               className="inline-flex items-center gap-2 text-xs uppercase tracking-wider text-muted-foreground hover:text-white mb-8"
@@ -62,7 +64,7 @@ export default function ColunistaDetailPage() {
             </Link>
 
             <div className="flex flex-col sm:flex-row gap-6 items-start">
-              <div className="w-32 h-32 rounded-full overflow-hidden bg-background border border-border flex-shrink-0 flex items-center justify-center">
+              <div className="w-32 h-32 rounded-full overflow-hidden bg-background border-2 border-primary/30 flex-shrink-0 flex items-center justify-center">
                 {columnist.avatarUrl ? (
                   <img
                     src={columnist.avatarUrl}

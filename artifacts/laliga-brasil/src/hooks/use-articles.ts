@@ -139,6 +139,10 @@ export function useAdminAccounts() {
 
 export interface UpdateAccountVars {
   id: string;
+  name?: string;
+  email?: string;
+  password?: string;
+  role?: string;
   isColumnist?: boolean;
   columnistSlug?: string | null;
   columnistTitle?: string | null;
@@ -146,6 +150,18 @@ export interface UpdateAccountVars {
   avatarUrl?: string | null;
   twitter?: string | null;
   active?: boolean;
+}
+
+export interface CreateAccountVars {
+  name: string;
+  email: string;
+  password: string;
+  role: string;
+  isColumnist?: boolean;
+  columnistTitle?: string;
+  bio?: string;
+  avatarUrl?: string;
+  twitter?: string;
 }
 
 export interface PublicColumnist {
@@ -244,6 +260,49 @@ export function useUpdateAccount() {
         throw new Error(data?.error ?? "Falha ao atualizar conta");
       }
       return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/admin/accounts"] });
+      queryClient.invalidateQueries({ queryKey: ["/users"] });
+      queryClient.invalidateQueries({ queryKey: ["/columnists"] });
+    },
+  });
+}
+
+export function useCreateAccount() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (vars: CreateAccountVars): Promise<AdminAccount> => {
+      const res = await fetch(`${BASE}/api/admin/accounts`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(vars),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data?.error ?? "Falha ao criar conta");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/admin/accounts"] });
+      queryClient.invalidateQueries({ queryKey: ["/users"] });
+      queryClient.invalidateQueries({ queryKey: ["/columnists"] });
+    },
+  });
+}
+
+export function useDeleteAccount() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string): Promise<void> => {
+      const res = await fetch(`${BASE}/api/admin/accounts/${id}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data?.error ?? "Falha ao excluir conta");
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/admin/accounts"] });
