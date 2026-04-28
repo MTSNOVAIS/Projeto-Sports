@@ -149,16 +149,18 @@ function TournamentImport({ managedIds, leagues, onAddSingle, onBulkAdd }: {
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
           <label className="block text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5">Liga cadastrada</label>
-          <select
+          <CustomSelect
             value={selectedLeagueId}
-            onChange={e => { setSelectedLeagueId(e.target.value); setSeasonId(""); setSelected(new Set()); }}
-            className="w-full bg-background border border-border rounded-lg px-3 py-2 text-white text-sm focus:border-primary focus:outline-none"
-          >
-            <option value="">— Selecionar liga —</option>
-            {leagues.filter(l => l.sofascoreId).map(l => (
-              <option key={l.id} value={l.id}>{l.name} (ID: {l.sofascoreId})</option>
-            ))}
-          </select>
+            onChange={(v) => { setSelectedLeagueId(v); setSeasonId(""); setSelected(new Set()); }}
+            placeholder="— Selecionar liga —"
+            options={[
+              { value: "", label: "— Selecionar liga —" },
+              ...leagues.filter(l => l.sofascoreId).map(l => ({
+                value: String(l.id),
+                label: `${l.name} (ID: ${l.sofascoreId})`,
+              })),
+            ]}
+          />
         </div>
         {!selectedLeagueId && (
           <div>
@@ -176,16 +178,18 @@ function TournamentImport({ managedIds, leagues, onAddSingle, onBulkAdd }: {
             Temporada {selectedLeagueId && leagues.find(l => l.id === Number(selectedLeagueId))?.currentSeasonId ? "(detectada automaticamente)" : ""}
           </label>
           {seasonsData?.seasons?.length > 0 ? (
-            <select
-              value={seasonId || effectiveSeasonId}
-              onChange={e => { setSeasonId(e.target.value); setSelected(new Set()); }}
-              className="w-full bg-background border border-border rounded-lg px-3 py-2 text-white text-sm focus:border-primary focus:outline-none"
-            >
-              <option value="">— Selecionar temporada —</option>
-              {seasonsData.seasons.map((s: any) => (
-                <option key={s.id} value={s.id}>{s.name} ({s.year})</option>
-              ))}
-            </select>
+            <CustomSelect
+              value={String(seasonId || effectiveSeasonId || "")}
+              onChange={(v) => { setSeasonId(v); setSelected(new Set()); }}
+              placeholder="— Selecionar temporada —"
+              options={[
+                { value: "", label: "— Selecionar temporada —" },
+                ...seasonsData.seasons.map((s: any) => ({
+                  value: String(s.id),
+                  label: `${s.name} (${s.year})`,
+                })),
+              ]}
+            />
           ) : (
             <input
               value={seasonId}
@@ -289,14 +293,15 @@ function TeamImport({ managedIds, leagues, onAddSingle, onBulkAdd }: {
         </div>
         <div>
           <label className="block text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5">Liga (opcional)</label>
-          <select
+          <CustomSelect
             value={selectedLeagueId}
-            onChange={e => setSelectedLeagueId(e.target.value)}
-            className="w-full bg-background border border-border rounded-lg px-3 py-2 text-white text-sm focus:border-primary focus:outline-none"
-          >
-            <option value="">— Sem liga associada —</option>
-            {leagues.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
-          </select>
+            onChange={(v) => setSelectedLeagueId(v)}
+            placeholder="— Sem liga associada —"
+            options={[
+              { value: "", label: "— Sem liga associada —" },
+              ...leagues.map(l => ({ value: String(l.id), label: l.name })),
+            ]}
+          />
         </div>
       </div>
 
@@ -380,14 +385,15 @@ function ManualImport({ managedIds, leagues, onAddSingle }: {
         </div>
         <div>
           <label className="block text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5">Liga (opcional)</label>
-          <select
+          <CustomSelect
             value={selectedLeagueId}
-            onChange={e => setSelectedLeagueId(e.target.value)}
-            className="w-full bg-background border border-border rounded-lg px-3 py-2 text-white text-sm focus:border-primary focus:outline-none"
-          >
-            <option value="">— Sem liga associada —</option>
-            {leagues.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
-          </select>
+            onChange={(v) => setSelectedLeagueId(v)}
+            placeholder="— Sem liga associada —"
+            options={[
+              { value: "", label: "— Sem liga associada —" },
+              ...leagues.map(l => ({ value: String(l.id), label: l.name })),
+            ]}
+          />
         </div>
       </div>
 

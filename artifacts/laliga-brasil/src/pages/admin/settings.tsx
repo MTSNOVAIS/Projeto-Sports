@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Settings, Plus, Trash2, Globe, Tag, ToggleLeft, ToggleRight, Loader2, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { AdminLayout } from "@/components/layout/AdminLayout";
+import { CustomSelect } from "@/components/ui/custom-select";
 
 const BASE = import.meta.env.BASE_URL;
 
@@ -105,15 +106,15 @@ function AddSourceForm({ onClose }: { onClose: () => void }) {
           onChange={e => setForm(f => ({ ...f, rssFeed: e.target.value }))}
           className="bg-card border border-border rounded-lg px-3 py-2 text-sm text-white placeholder-muted-foreground focus:outline-none focus:border-primary"
         />
-        <select
+        <CustomSelect
           value={form.language}
-          onChange={e => setForm(f => ({ ...f, language: e.target.value }))}
-          className="bg-card border border-border rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-primary"
-        >
-          <option value="es">Espanhol</option>
-          <option value="en">Inglês</option>
-          <option value="pt">Português</option>
-        </select>
+          onChange={(v) => setForm(f => ({ ...f, language: v }))}
+          options={[
+            { value: "es", label: "Espanhol" },
+            { value: "en", label: "Inglês" },
+            { value: "pt", label: "Português" },
+          ]}
+        />
       </div>
       <div className="flex justify-end gap-2">
         <button type="button" onClick={onClose} className="px-4 py-2 rounded-lg border border-border text-sm text-muted-foreground hover:text-white transition-colors">Cancelar</button>

@@ -1093,7 +1093,7 @@ export default function AdminArticleEditor() {
                     teams={teams}
                     accounts={accounts}
                     accountsLoading={accountsLoading}
-                    canPublishColumns={canAccessColumns}
+                    canPublishColumns={user?.isColumnist === true}
                   />
                 </div>
               )}
@@ -1102,28 +1102,30 @@ export default function AdminArticleEditor() {
             <button
               onClick={() => handleSave()}
               disabled={isSavingAny}
-              className="px-2.5 sm:px-4 py-2 bg-muted hover:bg-muted/80 text-white rounded-lg text-sm font-bold flex items-center gap-1.5 transition-colors disabled:opacity-50"
+              className="group relative px-3 sm:px-4 py-2 bg-zinc-800/80 hover:bg-zinc-700 text-zinc-100 rounded-lg text-sm font-semibold flex items-center gap-2 border border-zinc-700/60 hover:border-zinc-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Salvar alterações"
             >
               {updateMutation.isPending || createMutation.isPending ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
+                <Loader2 className="w-4 h-4 animate-spin text-zinc-300" />
               ) : (
-                <Save className="w-4 h-4" />
+                <Save className="w-4 h-4 text-zinc-300 group-hover:text-white transition-colors" />
               )}
-              <span className="hidden sm:inline">Salvar</span>
+              <span className="hidden sm:inline tracking-wide">Salvar</span>
             </button>
 
             {persistedStatus === "published" ? (
               <button
                 onClick={() => setConfirmAction("unpublish")}
                 disabled={isSavingAny}
-                className="px-2.5 sm:px-4 py-2 bg-zinc-700 hover:bg-zinc-600 text-white rounded-lg text-sm font-bold flex items-center gap-1.5 transition-colors disabled:opacity-50"
+                className="group px-3 sm:px-4 py-2 bg-zinc-800/80 hover:bg-amber-900/40 text-zinc-100 hover:text-amber-200 rounded-lg text-sm font-semibold flex items-center gap-2 border border-zinc-700/60 hover:border-amber-700/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Despublicar artigo"
               >
-                <Undo2 className="w-4 h-4" />
-                <span className="hidden sm:inline">Despublicar</span>
+                <Undo2 className="w-4 h-4 text-zinc-300 group-hover:text-amber-300 transition-colors" />
+                <span className="hidden sm:inline tracking-wide">Despublicar</span>
               </button>
             ) : (
               <div className="relative" ref={publishMenuRef}>
-                <div className="flex">
+                <div className="flex shadow-lg shadow-primary/25 rounded-lg ring-1 ring-primary/40">
                   <button
                     onClick={() =>
                       validation.isValid
@@ -1135,22 +1137,24 @@ export default function AdminArticleEditor() {
                           })
                     }
                     disabled={isSavingAny}
-                    className="px-3 sm:px-5 py-2 bg-primary hover:bg-accent text-white rounded-l-lg text-sm font-bold flex items-center gap-1.5 transition-colors shadow-lg shadow-primary/20 disabled:opacity-50"
+                    className="px-4 sm:px-5 py-2 bg-gradient-to-b from-primary to-accent hover:from-accent hover:to-accent text-white rounded-l-lg text-sm font-bold flex items-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {publishMutation.isPending ? (
                       <Loader2 className="w-4 h-4 animate-spin" />
                     ) : (
                       <Send className="w-4 h-4" />
                     )}
-                    Publicar
+                    <span className="tracking-wide uppercase text-[13px]">Publicar</span>
                   </button>
                   <button
                     onClick={() => setShowPublishMenu((v) => !v)}
                     disabled={isSavingAny}
-                    className="px-2 py-2 bg-primary hover:bg-accent text-white rounded-r-lg border-l border-white/10 transition-colors disabled:opacity-50"
+                    className="px-2.5 py-2 bg-gradient-to-b from-primary to-accent hover:from-accent hover:to-accent text-white rounded-r-lg border-l border-white/15 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                     aria-label="Mais opções de publicação"
                   >
-                    <ChevronDown className="w-4 h-4" />
+                    <ChevronDown
+                      className={`w-4 h-4 transition-transform ${showPublishMenu ? "rotate-180" : ""}`}
+                    />
                   </button>
                 </div>
 
@@ -1326,7 +1330,20 @@ function ConfirmModal({
           </div>
         </div>
         <div className="bg-background border border-border rounded-lg p-3 mb-4">
-          <p className="text-xs text-muted-foreground uppercase font-bold mb-1">Artigo</p>
+          <div className="flex items-center justify-between gap-2 mb-1">
+            <p className="text-xs text-muted-foreground uppercase font-bold">
+              {formData.kind === "column" ? "Coluna" : "Artigo"}
+            </p>
+            <span
+              className={`text-[10px] uppercase font-black tracking-wider px-2 py-0.5 rounded-full ${
+                formData.kind === "column"
+                  ? "bg-amber-500/15 text-amber-400 border border-amber-500/30"
+                  : "bg-primary/15 text-primary border border-primary/30"
+              }`}
+            >
+              {formData.kind === "column" ? "Seção colunistas" : "Página de notícias"}
+            </span>
+          </div>
           <p className="text-sm text-white font-bold line-clamp-2">{formData.title}</p>
           {formData.subtitle && (
             <p className="text-xs text-gray-400 mt-1 line-clamp-1">{formData.subtitle}</p>

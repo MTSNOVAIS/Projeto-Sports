@@ -29,24 +29,15 @@ import {
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
-type TabKey = "minhas" | "perfil" | "gerenciar";
+type TabKey = "minhas" | "perfil";
 
 export default function AdminColunas() {
-  const { user, isAdmin, refreshUser } = useAuth();
+  const { user, refreshUser } = useAuth();
   const [tab, setTab] = useState<TabKey>("minhas");
 
   const tabs: { key: TabKey; label: string; icon: React.ElementType }[] = [
     { key: "minhas", label: "Minhas colunas", icon: FileText },
     { key: "perfil", label: "Meu perfil", icon: UserIcon },
-    ...(isAdmin
-      ? ([
-          {
-            key: "gerenciar" as TabKey,
-            label: "Gerenciar colunistas",
-            icon: UsersIcon,
-          },
-        ] as const)
-      : []),
   ];
 
   return (
@@ -87,7 +78,6 @@ export default function AdminColunas() {
         {tab === "perfil" && (
           <MeuPerfilTab userId={user?.id} refreshUser={refreshUser} />
         )}
-        {tab === "gerenciar" && isAdmin && <GerenciarTab />}
       </div>
     </AdminLayout>
   );
