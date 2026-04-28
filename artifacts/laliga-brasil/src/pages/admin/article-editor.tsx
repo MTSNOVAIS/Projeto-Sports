@@ -422,6 +422,81 @@ function AuthorPicker({
   );
 }
 
+function CategoryPicker({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  const [customOpen, setCustomOpen] = useState(false);
+  const [customValue, setCustomValue] = useState("");
+
+  // include the current value in options if it's a custom one not in CATEGORIES
+  const isCustom = value && !CATEGORIES.includes(value);
+  const allOptions = [
+    { value: "", label: "— Sem categoria —" },
+    ...CATEGORIES.map((c) => ({ value: c, label: c })),
+    ...(isCustom ? [{ value, label: `${value} (personalizada)` }] : []),
+  ];
+
+  const addCustom = () => {
+    const v = customValue.trim();
+    if (!v) return;
+    onChange(v);
+    setCustomValue("");
+    setCustomOpen(false);
+  };
+
+  return (
+    <div className="space-y-2">
+      <CustomSelect
+        value={value}
+        onChange={onChange}
+        options={allOptions}
+        placeholder="— Sem categoria —"
+      />
+      <div className="flex justify-end">
+        <button
+          type="button"
+          onClick={() => setCustomOpen((v) => !v)}
+          className="px-2 py-1 bg-accent/20 hover:bg-accent/30 text-accent text-xs font-bold rounded inline-flex items-center gap-1 transition-colors"
+        >
+          <Plus className="w-3 h-3" />
+          {customOpen ? "Fechar" : "Mais opções"}
+        </button>
+      </div>
+      {customOpen && (
+        <div className="bg-background border border-border rounded-lg p-2 flex gap-2">
+          <input
+            type="text"
+            value={customValue}
+            onChange={(e) => setCustomValue(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                addCustom();
+              }
+            }}
+            placeholder="Nova categoria personalizada"
+            className="flex-1 bg-card border border-border rounded px-2 py-1.5 text-sm text-white focus:border-primary focus:outline-none"
+            autoFocus
+            maxLength={40}
+          />
+          <button
+            type="button"
+            onClick={addCustom}
+            disabled={!customValue.trim()}
+            className="px-3 py-1.5 bg-primary hover:bg-accent text-white rounded text-xs font-bold transition-colors disabled:opacity-50"
+          >
+            <Plus className="w-3 h-3 inline" /> Adicionar
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // =================== Settings Panel ===================
 
 type SettingsTab = "geral" | "destaques" | "capa" | "autoria";
@@ -495,12 +570,11 @@ function SettingsPanel({
             )}
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2">
-                Categoria
+                Categoria <span className="text-muted-foreground/60 normal-case font-normal">(opcional)</span>
               </label>
-              <CustomSelect
-                value={formData.category}
+              <CategoryPicker
+                value={formData.category || ""}
                 onChange={(v) => setFormData((p: any) => ({ ...p, category: v }))}
-                options={CATEGORIES.map((c) => ({ value: c, label: c }))}
               />
             </div>
             <div>

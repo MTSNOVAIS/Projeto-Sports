@@ -48,10 +48,17 @@ export default function ArticleView() {
         {/* Article Header */}
         <header className="pt-12 pb-8 border-b border-border bg-card/30">
           <div className="container mx-auto px-4 max-w-4xl">
-            <div className="flex items-center gap-3 mb-6">
-              <Link href={`/categoria/${article.category.toLowerCase()}`} className="px-3 py-1 bg-primary text-white text-xs font-bold uppercase tracking-wider rounded">
-                {article.category}
-              </Link>
+            <div className="flex items-center gap-3 mb-6 flex-wrap">
+              {(article as any).kind === "column" && (
+                <span className="px-3 py-1 bg-primary text-white text-xs font-bold uppercase tracking-wider rounded">
+                  Coluna
+                </span>
+              )}
+              {article.category && (article as any).kind !== "column" && (
+                <Link href={`/categoria/${article.category.toLowerCase()}`} className="px-3 py-1 bg-primary text-white text-xs font-bold uppercase tracking-wider rounded">
+                  {article.category}
+                </Link>
+              )}
               {article.teamName && (
                 <Link href={`/times/${article.teamSlug}`} className="px-3 py-1 bg-secondary text-white text-xs font-bold uppercase tracking-wider rounded flex items-center gap-1 border border-primary/20 hover:bg-secondary/80">
                   <Shield className="w-3 h-3" /> {article.teamName}
@@ -81,10 +88,34 @@ export default function ArticleView() {
                   <User className="w-4 h-4 text-primary" />
                   {(() => {
                     const co = ((article as any).coAuthors ?? []) as Array<{ name: string }>;
-                    const names = [article.authorName, ...co.map((c) => c.name)];
-                    if (names.length === 1) return names[0];
-                    if (names.length === 2) return `${names[0]} e ${names[1]}`;
-                    return `${names.slice(0, -1).join(", ")} e ${names[names.length - 1]}`;
+                    const isColumn = (article as any).kind === "column";
+                    const authorSlug = (article as any).authorSlug as string | null | undefined;
+                    const isLinkable =
+                      isColumn && (article as any).authorIsColumnist && authorSlug;
+                    const mainAuthor = isLinkable ? (
+                      <Link
+                        href={`/colunistas/${authorSlug}`}
+                        className="text-white hover:text-primary transition-colors underline-offset-4 hover:underline"
+                      >
+                        {article.authorName}
+                      </Link>
+                    ) : (
+                      article.authorName
+                    );
+                    if (co.length === 0) return mainAuthor;
+                    if (co.length === 1) {
+                      return (
+                        <>
+                          {mainAuthor} e {co[0].name}
+                        </>
+                      );
+                    }
+                    const others = co.slice(0, -1).map((c) => c.name).join(", ");
+                    return (
+                      <>
+                        {mainAuthor}, {others} e {co[co.length - 1].name}
+                      </>
+                    );
                   })()}
                 </span>
                 {dateStr && (

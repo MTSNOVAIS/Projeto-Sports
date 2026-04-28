@@ -3,9 +3,10 @@ import { Link, useRoute } from "wouter";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { useColumnistBySlug } from "@/hooks/use-articles";
-import { Twitter, Calendar, Eye, ArrowLeft } from "lucide-react";
+import { Mic, Twitter, Calendar, Eye, ChevronLeft, BookOpen } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { motion } from "framer-motion";
 
 export default function ColunistaDetailPage() {
   const [, params] = useRoute("/colunistas/:slug");
@@ -29,14 +30,13 @@ export default function ColunistaDetailPage() {
       <div className="min-h-screen flex flex-col">
         <Navbar />
         <div className="flex-grow flex items-center justify-center flex-col gap-4 text-center px-4">
-          <h1 className="text-3xl font-display font-black text-white">
-            Colunista não encontrado
-          </h1>
+          <Mic className="w-16 h-16 text-muted-foreground" />
+          <h1 className="text-2xl font-bold">Colunista não encontrado</h1>
           <Link
             href="/colunistas"
-            className="px-6 py-3 bg-primary text-white rounded-lg font-bold hover:bg-accent"
+            className="text-primary hover:underline"
           >
-            Ver todos os colunistas
+            ← Ver todos os colunistas
           </Link>
         </div>
         <Footer />
@@ -47,24 +47,40 @@ export default function ColunistaDetailPage() {
   const { columnist, columns } = data;
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
+    <div className="min-h-screen flex flex-col">
       <Navbar />
       <main className="flex-grow">
-        {/* Header */}
-        <section className="relative overflow-hidden border-b border-border">
-          <div className="absolute inset-0 bg-gradient-to-br from-primary/15 via-background to-background" />
-          <div className="absolute inset-0 opacity-30 [background-image:radial-gradient(circle_at_15%_30%,rgba(219,0,55,0.35),transparent_50%)]" />
-          <div className="relative container mx-auto px-4 py-12">
+        {/* Columnist Hero - mesma estrutura da página de Time */}
+        <div
+          className="relative border-b border-border overflow-hidden"
+          style={{
+            background:
+              "linear-gradient(135deg, #0D0D0D 0%, rgba(219,0,55,0.13) 50%, #0D0D0D 100%)",
+          }}
+        >
+          <div
+            className="absolute inset-0 opacity-5"
+            style={{
+              backgroundImage: "radial-gradient(circle, #DB0037 1px, transparent 1px)",
+              backgroundSize: "30px 30px",
+            }}
+          />
+          <div className="container mx-auto px-4 py-12 relative z-10">
             <Link
               href="/colunistas"
-              className="inline-flex items-center gap-2 text-xs uppercase tracking-wider text-muted-foreground hover:text-white mb-8"
+              className="inline-flex items-center gap-2 text-muted-foreground hover:text-white text-sm mb-6 transition-colors"
             >
-              <ArrowLeft className="w-4 h-4" />
-              Todos os colunistas
+              <ChevronLeft className="w-4 h-4" /> Todos os Colunistas
             </Link>
-
-            <div className="flex flex-col sm:flex-row gap-6 items-start">
-              <div className="w-32 h-32 rounded-full overflow-hidden bg-background border-2 border-primary/30 flex-shrink-0 flex items-center justify-center">
+            <div className="flex flex-col md:flex-row items-center md:items-start gap-8">
+              {/* Avatar */}
+              <div
+                className="w-32 h-32 flex-shrink-0 rounded-full flex items-center justify-center overflow-hidden bg-background"
+                style={{
+                  border: "3px solid rgba(219,0,55,0.6)",
+                  boxShadow: "0 0 40px rgba(219,0,55,0.2)",
+                }}
+              >
                 {columnist.avatarUrl ? (
                   <img
                     src={columnist.avatarUrl}
@@ -75,100 +91,131 @@ export default function ColunistaDetailPage() {
                     }
                   />
                 ) : (
-                  <span className="text-4xl font-display font-black text-muted-foreground">
+                  <span className="text-5xl font-display font-black text-muted-foreground">
                     {columnist.name.charAt(0).toUpperCase()}
                   </span>
                 )}
               </div>
-
-              <div className="flex-1 min-w-0">
-                <p className="text-xs uppercase tracking-[0.2em] text-primary font-bold mb-2">
-                  Colunista
-                </p>
-                <h1 className="text-3xl sm:text-4xl md:text-5xl font-display font-black tracking-tighter">
+              {/* Info */}
+              <div className="text-center md:text-left flex-1">
+                <h1 className="text-4xl md:text-5xl font-black text-white mb-3">
                   {columnist.name}
                 </h1>
-                {columnist.title && (
-                  <p className="text-lg text-white/70 italic mt-2">
-                    {columnist.title}
-                  </p>
-                )}
+                <div className="flex flex-wrap gap-4 justify-center md:justify-start text-sm text-muted-foreground">
+                  <span className="flex items-center gap-1.5">
+                    <Mic className="w-4 h-4 text-primary" /> Colunista
+                  </span>
+                  {columnist.title && (
+                    <span className="flex items-center gap-1.5">
+                      <BookOpen className="w-4 h-4 text-primary" />
+                      {columnist.title}
+                    </span>
+                  )}
+                  {columnist.twitter && (
+                    <a
+                      href={`https://twitter.com/${columnist.twitter}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex items-center gap-1.5 hover:text-primary transition-colors"
+                    >
+                      <Twitter className="w-4 h-4 text-primary" />@
+                      {columnist.twitter}
+                    </a>
+                  )}
+                </div>
                 {columnist.bio && (
-                  <p className="text-muted-foreground mt-4 max-w-2xl">
+                  <p className="mt-4 max-w-2xl text-gray-400 leading-relaxed">
                     {columnist.bio}
                   </p>
-                )}
-                {columnist.twitter && (
-                  <a
-                    href={`https://twitter.com/${columnist.twitter}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-2 mt-4 text-sm text-muted-foreground hover:text-primary transition-colors"
-                  >
-                    <Twitter className="w-4 h-4" />@{columnist.twitter}
-                  </a>
                 )}
               </div>
             </div>
           </div>
-        </section>
+        </div>
 
         {/* Columns */}
-        <section className="container mx-auto px-4 py-12">
-          <h2 className="text-2xl font-display font-black tracking-tight mb-6">
-            Últimas colunas
-          </h2>
+        <div className="container mx-auto px-4 py-10">
+          <div className="flex items-center justify-between mb-8 border-b border-border pb-4">
+            <h2 className="text-2xl font-bold">
+              Colunas de <span className="text-primary">{columnist.name}</span>
+            </h2>
+            <span className="text-sm text-muted-foreground">
+              {columns.length} {columns.length === 1 ? "publicação" : "publicações"}
+            </span>
+          </div>
+
           {columns.length === 0 ? (
-            <p className="text-muted-foreground py-8">
-              Este colunista ainda não publicou nada.
-            </p>
+            <div className="text-center py-20 text-muted-foreground">
+              <Mic className="w-12 h-12 mx-auto mb-3 opacity-30" />
+              <p>Este colunista ainda não publicou nada.</p>
+            </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {columns.map((col) => (
-                <Link
+              {columns.map((col, idx) => (
+                <motion.div
                   key={col.id}
-                  href={`/noticias/${col.slug}`}
-                  className="group bg-card border border-border rounded-xl overflow-hidden hover:border-primary/50 transition-colors flex flex-col"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: idx * 0.05 }}
                 >
-                  {col.coverImage && (
-                    <div className="aspect-video bg-background overflow-hidden">
-                      <img
-                        src={col.coverImage}
-                        alt={col.title}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                      />
-                    </div>
-                  )}
-                  <div className="p-5 flex-1 flex flex-col">
-                    <p className="text-xs font-bold uppercase tracking-wider text-primary mb-2">
-                      {col.category}
-                    </p>
-                    <h3 className="text-lg font-display font-black text-white group-hover:text-primary transition-colors line-clamp-2">
-                      {col.title}
-                    </h3>
-                    <p className="text-sm text-muted-foreground mt-2 line-clamp-2 flex-1">
-                      {col.excerpt}
-                    </p>
-                    <div className="flex items-center gap-4 mt-4 pt-4 border-t border-border text-xs text-muted-foreground">
-                      {col.publishedAt && (
-                        <span className="flex items-center gap-1">
-                          <Calendar className="w-3 h-3" />
-                          {format(parseISO(col.publishedAt), "dd MMM yyyy", {
-                            locale: ptBR,
-                          })}
+                  <Link
+                    href={`/noticias/${col.slug}`}
+                    className="group block bg-card border border-border rounded-xl overflow-hidden hover:border-primary/50 hover:-translate-y-1 transition-all hover:shadow-lg hover:shadow-primary/10 h-full flex flex-col"
+                  >
+                    {col.coverImage ? (
+                      <div className="aspect-video bg-background overflow-hidden">
+                        <img
+                          src={col.coverImage}
+                          alt={col.title}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                          onError={(e) =>
+                            ((e.target as HTMLImageElement).style.display = "none")
+                          }
+                        />
+                      </div>
+                    ) : (
+                      <div className="aspect-video bg-gradient-to-br from-primary/20 to-background flex items-center justify-center border-b border-border">
+                        <Mic className="w-12 h-12 text-primary/40" />
+                      </div>
+                    )}
+                    <div className="p-5 flex-1 flex flex-col">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-primary bg-primary/10 border border-primary/30 px-2 py-0.5 rounded">
+                          <Mic className="w-2.5 h-2.5" /> Coluna
                         </span>
-                      )}
-                      <span className="flex items-center gap-1">
-                        <Eye className="w-3 h-3" />
-                        {col.viewCount}
-                      </span>
+                        {col.category && (
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                            {col.category}
+                          </span>
+                        )}
+                      </div>
+                      <h3 className="text-lg font-display font-black text-white group-hover:text-primary transition-colors line-clamp-2 leading-tight">
+                        {col.title}
+                      </h3>
+                      <p className="text-sm text-muted-foreground mt-2 line-clamp-2 flex-1">
+                        {col.excerpt}
+                      </p>
+                      <div className="flex items-center gap-4 mt-4 pt-4 border-t border-border text-xs text-muted-foreground">
+                        {col.publishedAt && (
+                          <span className="flex items-center gap-1">
+                            <Calendar className="w-3 h-3" />
+                            {format(parseISO(col.publishedAt), "dd MMM yyyy", {
+                              locale: ptBR,
+                            })}
+                          </span>
+                        )}
+                        <span className="flex items-center gap-1">
+                          <Eye className="w-3 h-3" />
+                          {col.viewCount}
+                        </span>
+                      </div>
                     </div>
-                  </div>
-                </Link>
+                  </Link>
+                </motion.div>
               ))}
             </div>
           )}
-        </section>
+        </div>
       </main>
       <Footer />
     </div>

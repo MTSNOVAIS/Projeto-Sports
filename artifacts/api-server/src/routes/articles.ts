@@ -162,6 +162,9 @@ router.get("/articles/:slug", async (req, res): Promise<void> => {
     category: articlesTable.category,
     authorName: articlesTable.authorName,
     authorId: articlesTable.authorId,
+    authorSlug: usersTable.columnistSlug,
+    authorAvatarUrl: usersTable.avatarUrl,
+    authorIsColumnist: usersTable.isColumnist,
     coAuthors: articlesTable.coAuthors,
     kind: articlesTable.kind,
     teamId: articlesTable.teamId,
@@ -177,6 +180,7 @@ router.get("/articles/:slug", async (req, res): Promise<void> => {
   })
     .from(articlesTable)
     .leftJoin(teamsTable, eq(articlesTable.teamId, teamsTable.id))
+    .leftJoin(usersTable, eq(articlesTable.authorId, usersTable.id))
     .where(eq(articlesTable.slug, slug));
 
   if (!article) {
@@ -385,7 +389,7 @@ router.post("/admin/articles", async (req, res): Promise<void> => {
     status: status || "draft",
     featured: featured || false,
     breakingNews: breakingNews || false,
-    category: category || "La Liga",
+    category: typeof category === "string" && category.trim() ? category.trim() : "La Liga",
     authorName: authorName || "Redação",
     authorId: safeAuthorId,
     coAuthors: sanitizedCoAuthors,
