@@ -6,7 +6,7 @@ import { ArticleCard } from "@/components/shared/ArticleCard";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { Link } from "wouter";
-import { AlertCircle, Flame, Circle, ChevronRight, Trophy, Mic } from "lucide-react";
+import { Flame, Circle, ChevronRight, Trophy, Mic } from "lucide-react";
 import { motion } from "framer-motion";
 
 function ColunistasSection() {
@@ -171,37 +171,16 @@ export default function Home() {
   const { data: featuredMatch } = useFeaturedMatch();
 
   const articles = response?.articles || [];
-  const breakingNews = articles.filter((a: any) => a.breakingNews).slice(0, 3);
   const featuredArticles = articles.filter((a: any) => a.featured);
-  const mainFeatured = featuredArticles[0] || articles[0];
-  const secondFeatured = featuredArticles[1];
-  const latest = articles.filter((a: any) => a.id !== mainFeatured?.id && a.id !== secondFeatured?.id).slice(0, 6);
+  const hasFeatured = featuredArticles.length > 0;
+  const fallbackFeatured = !hasFeatured && articles[0] ? [articles[0]] : [];
+  const featuredToShow = hasFeatured ? featuredArticles : fallbackFeatured;
+  const featuredIds = new Set(featuredToShow.map((a: any) => a.id));
+  const latest = articles.filter((a: any) => !featuredIds.has(a.id)).slice(0, 6);
 
   return (
     <div className="min-h-screen flex flex-col">
       <Navbar />
-
-      {/* Breaking News Ticker */}
-      {breakingNews.length > 0 && (
-        <div className="bg-primary text-white py-2 overflow-hidden flex items-center border-b border-primary/50 shadow-[0_0_15px_rgba(219,0,55,0.3)]">
-          <div className="container mx-auto px-4 flex items-center">
-            <span className="flex items-center gap-2 font-black uppercase text-xs tracking-widest whitespace-nowrap z-10 bg-primary pr-4">
-              <AlertCircle className="w-4 h-4 animate-pulse" />
-              Urgente
-            </span>
-            <div className="flex-1 overflow-hidden relative">
-              <div className="animate-ticker flex whitespace-nowrap gap-8 text-sm font-medium">
-                {breakingNews.map(item => (
-                  <Link key={item.id} href={`/noticias/${item.slug}`} className="hover:underline flex items-center gap-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-white/50" />
-                    {item.title}
-                  </Link>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       <main className="flex-grow">
         <div className="container mx-auto px-4 py-8 sm:py-12">
@@ -216,21 +195,38 @@ export default function Home() {
               {/* Main Content */}
               <div className="lg:col-span-8 space-y-8">
 
-                {/* Main Featured Article */}
-                {mainFeatured && (
-                  <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+                {/* Featured carousel — horizontal scroll of all featured articles */}
+                {featuredToShow.length > 0 && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                  >
                     <div className="flex items-center gap-2 mb-4">
                       <Flame className="text-primary w-5 h-5" />
-                      <h2 className="font-display text-xl text-white">Destaque</h2>
+                      <h2 className="font-display text-xl text-white">
+                        {hasFeatured ? "Destaques" : "Destaque"}
+                      </h2>
                     </div>
-                    <ArticleCard article={mainFeatured} featured={true} />
-                  </motion.div>
-                )}
 
-                {/* Second Featured */}
-                {secondFeatured && (
-                  <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-                    <ArticleCard article={secondFeatured} featured={true} />
+                    {featuredToShow.length === 1 ? (
+                      <ArticleCard article={featuredToShow[0]} featured={true} />
+                    ) : (
+                      <div className="-mx-4 px-4 sm:mx-0 sm:px-0">
+                        <div
+                          className="flex gap-4 overflow-x-auto snap-x snap-mandatory pb-4 scroll-smooth"
+                          style={{ scrollbarWidth: "thin" }}
+                        >
+                          {featuredToShow.map((article: any) => (
+                            <div
+                              key={article.id}
+                              className="snap-start flex-shrink-0 w-[88%] sm:w-[70%] md:w-[60%] lg:w-[85%]"
+                            >
+                              <ArticleCard article={article} featured={true} />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </motion.div>
                 )}
 
