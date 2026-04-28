@@ -497,6 +497,44 @@ function CategoryPicker({
   );
 }
 
+// =================== Auto-resize textarea ===================
+
+function AutoResizeTextarea({
+  value,
+  onChange,
+  placeholder,
+  className,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+  className?: string;
+}) {
+  const ref = React.useRef<HTMLTextAreaElement>(null);
+
+  React.useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = el.scrollHeight + "px";
+  }, [value]);
+
+  return (
+    <textarea
+      ref={ref}
+      value={value}
+      rows={1}
+      onChange={(e) => {
+        onChange(e.target.value);
+        e.target.style.height = "auto";
+        e.target.style.height = e.target.scrollHeight + "px";
+      }}
+      placeholder={placeholder}
+      className={className}
+    />
+  );
+}
+
 // =================== Settings Panel ===================
 
 type SettingsTab = "geral" | "destaques" | "capa" | "autoria";
@@ -1174,66 +1212,52 @@ export default function AdminArticleEditor() {
           </div>
         )}
 
-        {/* Main editor — single column */}
-        <main className="container mx-auto px-3 sm:px-4 max-w-5xl mt-4 sm:mt-6 space-y-4 sm:space-y-6">
-          <div className="bg-card border border-border rounded-2xl p-4 sm:p-8 space-y-5 sm:space-y-6 shadow-sm">
-            <div>
-              <label className="block text-xs sm:text-sm font-bold text-muted-foreground uppercase tracking-wider mb-2 sm:mb-3 flex items-center gap-2">
-                <FileText className="w-4 h-4" /> Título
-              </label>
-              <input
-                type="text"
-                value={formData.title}
-                onChange={(e) => setFormData((p) => ({ ...p, title: e.target.value }))}
-                placeholder="Insira um título impactante e descritivo..."
-                className="w-full bg-background border border-border rounded-lg px-3 sm:px-4 py-3 sm:py-4 text-white font-display text-lg sm:text-2xl font-bold focus:border-primary focus:ring-2 focus:ring-primary/50 focus:outline-none transition-all placeholder-muted-foreground/50"
-              />
-              <p className="text-[11px] text-muted-foreground mt-1">
-                {formData.title.length} caracteres
-              </p>
-            </div>
+        {/* Main editor — document style */}
+        <main className="mx-auto max-w-3xl px-4 sm:px-8 mt-8 sm:mt-12 pb-40">
 
-            <div>
-              <label className="text-xs sm:text-sm font-bold text-muted-foreground uppercase tracking-wider mb-2 sm:mb-3 flex items-center gap-2 justify-between">
-                <span>Subtítulo</span>
-                <button
-                  type="button"
-                  onClick={handleGenerateSubtitle}
-                  disabled={generatingSubtitle || !formData.title || !formData.content}
-                  className="px-2.5 sm:px-3 py-1 bg-accent/20 hover:bg-accent/40 text-accent rounded text-[11px] sm:text-xs font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {generatingSubtitle ? "Gerando..." : "Gerar com IA"}
-                </button>
-              </label>
-              <input
-                type="text"
-                value={formData.subtitle || ""}
-                onChange={(e) => setFormData((p) => ({ ...p, subtitle: e.target.value }))}
-                placeholder="Subtítulo complementar..."
-                className="w-full bg-background border border-border rounded-lg px-3 sm:px-4 py-2.5 sm:py-3 text-sm sm:text-base text-gray-300 focus:border-primary focus:ring-2 focus:ring-primary/50 focus:outline-none transition-all placeholder-muted-foreground/50"
-              />
-            </div>
-          </div>
-
-          <div className="bg-card border border-border rounded-2xl p-4 sm:p-8 space-y-3 sm:space-y-4 shadow-sm">
-            <label className="text-xs sm:text-sm font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
-              <FileText className="w-4 h-4" /> Conteúdo do Artigo
-            </label>
-            <RichTextEditor
-              value={formData.content}
-              onChange={(v) => setFormData((p) => ({ ...p, content: v }))}
-              placeholder="Comece a escrever seu artigo aqui..."
-            />
-          </div>
-
+          {/* Source badge */}
           {formData.sourceName && (
-            <div className="bg-primary/10 border border-primary/30 rounded-2xl p-4">
-              <p className="text-xs text-primary font-bold uppercase mb-1">📰 Importado</p>
-              <p className="text-sm text-primary/90">
-                Fonte: <strong>{formData.sourceName}</strong>
-              </p>
+            <div className="inline-flex items-center gap-2 mb-6 px-3 py-1.5 bg-primary/10 border border-primary/25 rounded-full text-xs text-primary font-bold">
+              📰 Importado de: {formData.sourceName}
             </div>
           )}
+
+          {/* Title */}
+          <AutoResizeTextarea
+            value={formData.title}
+            onChange={(v) => setFormData((p) => ({ ...p, title: v }))}
+            placeholder="Título do artigo..."
+            className="w-full bg-transparent text-white font-display text-3xl sm:text-4xl lg:text-5xl font-black leading-tight resize-none focus:outline-none placeholder-white/15 mb-2"
+          />
+
+          {/* Subtitle row */}
+          <div className="flex items-center gap-3 mb-8">
+            <input
+              type="text"
+              value={formData.subtitle || ""}
+              onChange={(e) => setFormData((p) => ({ ...p, subtitle: e.target.value }))}
+              placeholder="Adicione um subtítulo..."
+              className="flex-1 bg-transparent text-gray-400 text-lg italic focus:outline-none placeholder-white/15"
+            />
+            <button
+              type="button"
+              onClick={handleGenerateSubtitle}
+              disabled={generatingSubtitle || !formData.title || !formData.content}
+              className="flex-shrink-0 px-3 py-1.5 bg-accent/15 hover:bg-accent/30 text-accent rounded-lg text-xs font-bold transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              {generatingSubtitle ? "Gerando..." : "✦ IA"}
+            </button>
+          </div>
+
+          {/* Divider */}
+          <div className="border-t border-white/8 mb-8" />
+
+          {/* Rich text content — borderless document feel */}
+          <RichTextEditor
+            value={formData.content}
+            onChange={(v) => setFormData((p) => ({ ...p, content: v }))}
+            placeholder="Comece a escrever aqui..."
+          />
         </main>
       </div>
 

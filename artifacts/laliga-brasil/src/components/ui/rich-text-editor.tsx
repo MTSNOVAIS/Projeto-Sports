@@ -3,8 +3,8 @@ import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Link from "@tiptap/extension-link";
 import {
-  Bold, Italic, List, ListOrdered, Heading1, Heading2, Link as LinkIcon, Quote, Code,
-  Undo2, Redo2
+  Bold, Italic, List, ListOrdered, Heading1, Heading2,
+  Link as LinkIcon, Quote, Code, Undo2, Redo2,
 } from "lucide-react";
 
 interface RichTextEditorProps {
@@ -13,13 +13,39 @@ interface RichTextEditorProps {
   placeholder?: string;
 }
 
-export function RichTextEditor({ value, onChange, placeholder = "Escreva o conteúdo aqui..." }: RichTextEditorProps) {
+function ToolbarButton({
+  onClick, active, title, children,
+}: {
+  onClick: () => void;
+  active?: boolean;
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={title}
+      className={`p-1.5 rounded transition-colors ${
+        active
+          ? "bg-primary text-white"
+          : "text-muted-foreground hover:text-white hover:bg-white/10"
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
+export function RichTextEditor({
+  value,
+  onChange,
+  placeholder = "Escreva o conteúdo aqui...",
+}: RichTextEditorProps) {
   const editor = useEditor({
     extensions: [
       StarterKit,
-      Link.configure({
-        openOnClick: false,
-      }),
+      Link.configure({ openOnClick: false }),
     ],
     content: value,
     onUpdate: ({ editor }) => {
@@ -27,12 +53,12 @@ export function RichTextEditor({ value, onChange, placeholder = "Escreva o conte
     },
     editorProps: {
       attributes: {
-        class: "prose prose-invert max-w-none bg-background border border-border rounded-lg px-6 py-5 text-gray-300 focus:border-primary focus:outline-none transition-all min-h-[600px] text-base leading-relaxed",
+        class:
+          "min-h-[520px] text-gray-200 text-[17px] leading-[1.8] focus:outline-none prose prose-invert max-w-none prose-p:text-gray-200 prose-headings:text-white prose-strong:text-white prose-a:text-primary",
       },
     },
   });
 
-  // Sync external value into editor when it changes (e.g. when article data loads async)
   useEffect(() => {
     if (!editor) return;
     if (value !== editor.getHTML()) {
@@ -41,149 +67,76 @@ export function RichTextEditor({ value, onChange, placeholder = "Escreva o conte
   }, [value, editor]);
 
   if (!editor) {
-    return <div>Carregando editor...</div>;
+    return (
+      <div className="text-muted-foreground text-sm py-8 text-center">
+        Carregando editor...
+      </div>
+    );
   }
 
   return (
-    <div className="space-y-3">
-      <div className="bg-card border border-border rounded-lg p-3 flex flex-wrap gap-1">
-        <button
-          onClick={() => editor.chain().focus().toggleBold().run()}
-          className={`p-2 rounded transition-colors ${
-            editor.isActive("bold") 
-              ? "bg-primary text-white" 
-              : "bg-muted hover:bg-muted/80 text-muted-foreground hover:text-white"
-          }`}
-          title="Negrito"
-        >
+    <div>
+      {/* Formatting toolbar */}
+      <div className="flex flex-wrap items-center gap-0.5 mb-5 pb-3 border-b border-white/8">
+        <ToolbarButton onClick={() => editor.chain().focus().toggleBold().run()} active={editor.isActive("bold")} title="Negrito">
           <Bold className="w-4 h-4" />
-        </button>
-        
-        <button
-          onClick={() => editor.chain().focus().toggleItalic().run()}
-          className={`p-2 rounded transition-colors ${
-            editor.isActive("italic") 
-              ? "bg-primary text-white" 
-              : "bg-muted hover:bg-muted/80 text-muted-foreground hover:text-white"
-          }`}
-          title="Itálico"
-        >
+        </ToolbarButton>
+        <ToolbarButton onClick={() => editor.chain().focus().toggleItalic().run()} active={editor.isActive("italic")} title="Itálico">
           <Italic className="w-4 h-4" />
-        </button>
-        
-        <button
-          onClick={() => editor.chain().focus().toggleCodeBlock().run()}
-          className={`p-2 rounded transition-colors ${
-            editor.isActive("codeBlock") 
-              ? "bg-primary text-white" 
-              : "bg-muted hover:bg-muted/80 text-muted-foreground hover:text-white"
-          }`}
-          title="Bloco de Código"
-        >
+        </ToolbarButton>
+        <ToolbarButton onClick={() => editor.chain().focus().toggleCode().run()} active={editor.isActive("code")} title="Código inline">
           <Code className="w-4 h-4" />
-        </button>
-        
-        <div className="w-px bg-border mx-1" />
-        
-        <button
-          onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
-          className={`p-2 rounded transition-colors ${
-            editor.isActive("heading", { level: 1 }) 
-              ? "bg-primary text-white" 
-              : "bg-muted hover:bg-muted/80 text-muted-foreground hover:text-white"
-          }`}
-          title="Título 1"
-        >
+        </ToolbarButton>
+
+        <span className="w-px h-4 bg-white/10 mx-1" />
+
+        <ToolbarButton onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()} active={editor.isActive("heading", { level: 1 })} title="Título 1">
           <Heading1 className="w-4 h-4" />
-        </button>
-        
-        <button
-          onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
-          className={`p-2 rounded transition-colors ${
-            editor.isActive("heading", { level: 2 }) 
-              ? "bg-primary text-white" 
-              : "bg-muted hover:bg-muted/80 text-muted-foreground hover:text-white"
-          }`}
-          title="Título 2"
-        >
+        </ToolbarButton>
+        <ToolbarButton onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} active={editor.isActive("heading", { level: 2 })} title="Título 2">
           <Heading2 className="w-4 h-4" />
-        </button>
-        
-        <div className="w-px bg-border mx-1" />
-        
-        <button
-          onClick={() => editor.chain().focus().toggleBulletList().run()}
-          className={`p-2 rounded transition-colors ${
-            editor.isActive("bulletList") 
-              ? "bg-primary text-white" 
-              : "bg-muted hover:bg-muted/80 text-muted-foreground hover:text-white"
-          }`}
-          title="Lista"
-        >
+        </ToolbarButton>
+
+        <span className="w-px h-4 bg-white/10 mx-1" />
+
+        <ToolbarButton onClick={() => editor.chain().focus().toggleBulletList().run()} active={editor.isActive("bulletList")} title="Lista">
           <List className="w-4 h-4" />
-        </button>
-        
-        <button
-          onClick={() => editor.chain().focus().toggleOrderedList().run()}
-          className={`p-2 rounded transition-colors ${
-            editor.isActive("orderedList") 
-              ? "bg-primary text-white" 
-              : "bg-muted hover:bg-muted/80 text-muted-foreground hover:text-white"
-          }`}
-          title="Lista Numerada"
-        >
+        </ToolbarButton>
+        <ToolbarButton onClick={() => editor.chain().focus().toggleOrderedList().run()} active={editor.isActive("orderedList")} title="Lista numerada">
           <ListOrdered className="w-4 h-4" />
-        </button>
-        
-        <button
-          onClick={() => editor.chain().focus().toggleBlockquote().run()}
-          className={`p-2 rounded transition-colors ${
-            editor.isActive("blockquote") 
-              ? "bg-primary text-white" 
-              : "bg-muted hover:bg-muted/80 text-muted-foreground hover:text-white"
-          }`}
-          title="Citação"
-        >
+        </ToolbarButton>
+        <ToolbarButton onClick={() => editor.chain().focus().toggleBlockquote().run()} active={editor.isActive("blockquote")} title="Citação">
           <Quote className="w-4 h-4" />
-        </button>
-        
-        <div className="w-px bg-border mx-1" />
-        
-        <button
+        </ToolbarButton>
+        <ToolbarButton
           onClick={() => {
-            const url = prompt("URL:");
+            const url = prompt("URL do link:");
             if (url) editor.chain().focus().extendMarkRange("link").setLink({ href: url }).run();
           }}
-          className={`p-2 rounded transition-colors ${
-            editor.isActive("link") 
-              ? "bg-primary text-white" 
-              : "bg-muted hover:bg-muted/80 text-muted-foreground hover:text-white"
-          }`}
-          title="Link"
+          active={editor.isActive("link")}
+          title="Inserir link"
         >
           <LinkIcon className="w-4 h-4" />
-        </button>
-        
-        <div className="w-px bg-border mx-1" />
-        
-        <button
-          onClick={() => editor.chain().focus().undo().run()}
-          className="p-2 rounded transition-colors bg-muted hover:bg-muted/80 text-muted-foreground hover:text-white"
-          title="Desfazer"
-        >
+        </ToolbarButton>
+
+        <span className="w-px h-4 bg-white/10 mx-1" />
+
+        <ToolbarButton onClick={() => editor.chain().focus().undo().run()} title="Desfazer">
           <Undo2 className="w-4 h-4" />
-        </button>
-        
-        <button
-          onClick={() => editor.chain().focus().redo().run()}
-          className="p-2 rounded transition-colors bg-muted hover:bg-muted/80 text-muted-foreground hover:text-white"
-          title="Refazer"
-        >
+        </ToolbarButton>
+        <ToolbarButton onClick={() => editor.chain().focus().redo().run()} title="Refazer">
           <Redo2 className="w-4 h-4" />
-        </button>
+        </ToolbarButton>
       </div>
-      
-      <EditorContent editor={editor} />
+
+      <div className="relative">
+        <EditorContent editor={editor} />
+        {(!value || value === "<p></p>") && (
+          <p className="absolute top-0 left-0 text-[17px] text-white/20 pointer-events-none select-none">
+            {placeholder}
+          </p>
+        )}
+      </div>
     </div>
   );
 }
