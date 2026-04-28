@@ -149,10 +149,17 @@ export default function ArticleView() {
 
         {/* Article Content */}
         <div className="container mx-auto px-4 max-w-3xl py-12">
-          <article className="prose prose-invert prose-lg prose-p:text-gray-300 prose-headings:text-white prose-a:text-primary hover:prose-a:text-accent max-w-none">
-            <div className="text-gray-300 leading-relaxed whitespace-pre-wrap">
-              {article.content}
-            </div>
+          <article className="prose prose-invert prose-lg prose-p:text-gray-300 prose-headings:text-white prose-a:text-primary hover:prose-a:text-accent max-w-none w-full overflow-hidden">
+            {article.content && article.content.trim().startsWith("<") ? (
+              <div
+                className="text-gray-300 leading-relaxed break-words overflow-wrap-anywhere"
+                dangerouslySetInnerHTML={{ __html: article.content }}
+              />
+            ) : (
+              <div className="text-gray-300 leading-relaxed break-words whitespace-pre-wrap overflow-hidden">
+                {article.content}
+              </div>
+            )}
           </article>
           
           {/* Attribution block for imported articles */}

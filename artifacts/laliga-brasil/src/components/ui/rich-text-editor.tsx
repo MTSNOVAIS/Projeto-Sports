@@ -27,7 +27,7 @@ export function RichTextEditor({ value, onChange, placeholder = "Escreva o conte
     },
     editorProps: {
       attributes: {
-        class: "prose prose-invert max-w-none bg-background border border-border rounded-lg px-4 py-3 text-gray-300 focus:border-primary focus:outline-none transition-all min-h-[400px]",
+        class: "prose prose-invert max-w-none bg-background border border-border rounded-lg px-6 py-5 text-gray-300 focus:border-primary focus:outline-none transition-all min-h-[600px] text-base leading-relaxed",
       },
     },
   });

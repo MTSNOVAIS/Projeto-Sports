@@ -21,7 +21,9 @@ import {
   useCreateAccount,
   useUpdateAccount,
   useDeleteAccount,
+  useAdminRoles,
   type AdminAccount,
+  type AdminRole,
 } from "@/hooks/use-articles";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -56,6 +58,7 @@ export default function AdminUsersList() {
   const { user: currentUser } = useAuth();
   const { toast } = useToast();
   const { data: accounts = [], isLoading } = useAdminAccounts();
+  const { data: roles = [] } = useAdminRoles();
   const createAccount = useCreateAccount();
   const updateAccount = useUpdateAccount();
   const deleteAccount = useDeleteAccount();
@@ -252,6 +255,7 @@ export default function AdminUsersList() {
         {/* Create modal */}
         {showCreate && (
           <CreateUserModal
+            roles={roles}
             isPending={createAccount.isPending}
             onClose={() => setShowCreate(false)}
             onSubmit={async (vars) => {
@@ -277,6 +281,7 @@ export default function AdminUsersList() {
         {editing && (
           <EditUserModal
             account={editing}
+            roles={roles}
             isPending={updateAccount.isPending}
             onClose={() => setEditing(null)}
             onSaved={() => {
@@ -512,10 +517,12 @@ const inputClass =
   "w-full bg-background border border-border rounded-lg px-3 py-2.5 text-sm text-white placeholder:text-muted-foreground focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all";
 
 function CreateUserModal({
+  roles,
   isPending,
   onClose,
   onSubmit,
 }: {
+  roles: AdminRole[];
   isPending: boolean;
   onClose: () => void;
   onSubmit: (vars: {
@@ -534,7 +541,7 @@ function CreateUserModal({
     name: "",
     email: "",
     password: "",
-    role: "editor" as RoleKey,
+    role: "editor",
     isColumnist: false,
     columnistTitle: "",
     bio: "",
@@ -608,12 +615,22 @@ function CreateUserModal({
             <FieldLabel>Cargo</FieldLabel>
             <select
               value={form.role}
-              onChange={(e) => update("role", e.target.value as RoleKey)}
+              onChange={(e) => update("role", e.target.value)}
               className={inputClass}
             >
-              <option value="viewer">Visualizador</option>
-              <option value="editor">Editor</option>
-              <option value="admin">Administrador</option>
+              {roles.length > 0 ? (
+                roles.map((r) => (
+                  <option key={r.key} value={r.key}>
+                    {r.name}
+                  </option>
+                ))
+              ) : (
+                <>
+                  <option value="viewer">Visualizador</option>
+                  <option value="editor">Editor</option>
+                  <option value="admin">Administrador</option>
+                </>
+              )}
             </select>
           </div>
         </div>
@@ -716,11 +733,13 @@ function CreateUserModal({
 
 function EditUserModal({
   account,
+  roles,
   isPending,
   onClose,
   onSaved,
 }: {
   account: AdminAccount;
+  roles: AdminRole[];
   isPending: boolean;
   onClose: () => void;
   onSaved: () => void;
@@ -807,9 +826,19 @@ function EditUserModal({
               onChange={(e) => update("role", e.target.value)}
               className={inputClass}
             >
-              <option value="viewer">Visualizador</option>
-              <option value="editor">Editor</option>
-              <option value="admin">Administrador</option>
+              {roles.length > 0 ? (
+                roles.map((r) => (
+                  <option key={r.key} value={r.key}>
+                    {r.name}
+                  </option>
+                ))
+              ) : (
+                <>
+                  <option value="viewer">Visualizador</option>
+                  <option value="editor">Editor</option>
+                  <option value="admin">Administrador</option>
+                </>
+              )}
             </select>
           </div>
           <div>
