@@ -1,4 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Oswald:wght@700;800&display=swap');
 @import "tailwindcss";
 @import "tw-animate-css";
 @plugin "@tailwindcss/typography";
@@ -40,8 +39,8 @@
   --color-destructive-foreground: hsl(var(--destructive-foreground));
   --color-destructive-border: var(--destructive-border);
 
-  --font-sans: 'Inter', sans-serif;
-  --font-display: 'Oswald', sans-serif;
+  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', sans-serif;
+  --font-display: 'Georgia', 'Times New Roman', serif;
   
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
@@ -50,36 +49,35 @@
 }
 
 :root {
-  /* DARK EDITORIAL THEME - FORCED DARK MODE */
-  --background: 0 0% 5%; /* #0D0D0D */
-  --foreground: 0 0% 100%; /* #FFFFFF */
+  --background: 0 0% 5%;
+  --foreground: 0 0% 100%;
   
-  --card: 0 0% 9%; /* #161616 */
-  --card-foreground: 210 40% 96%; /* #F3F4F6 */
-  --card-border: 0 0% 15%; /* #262626 */
+  --card: 0 0% 9%;
+  --card-foreground: 210 40% 96%;
+  --card-border: 0 0% 15%;
   
   --popover: 0 0% 9%;
   --popover-foreground: 0 0% 100%;
   --popover-border: 0 0% 15%;
   
-  --primary: 345 100% 43%; /* #DB0037 - Crimson Red */
+  --primary: 345 100% 43%;
   --primary-foreground: 0 0% 100%;
   
-  --secondary: 345 100% 19%; /* #610018 - Dark Maroon */
+  --secondary: 345 100% 19%;
   --secondary-foreground: 0 0% 100%;
   
-  --muted: 0 0% 12%; /* #1F1F1F */
-  --muted-foreground: 0 0% 63%; /* #A1A1AA */
+  --muted: 0 0% 12%;
+  --muted-foreground: 0 0% 63%;
   
-  --accent: 345 100% 50%; /* #FF0040 - Bright Red */
+  --accent: 345 100% 50%;
   --accent-foreground: 0 0% 100%;
   
   --destructive: 0 100% 50%;
   --destructive-foreground: 0 0% 100%;
   
-  --border: 0 0% 15%; /* #262626 */
-  --input: 0 0% 12%; /* #1F1F1F */
-  --ring: 345 100% 43%; /* #DB0037 */
+  --border: 0 0% 15%;
+  --input: 0 0% 12%;
+  --ring: 345 100% 43%;
   
   --radius: 0.5rem;
 }
@@ -96,7 +94,6 @@
   }
 }
 
-/* Custom Scrollbar for a premium feel */
 ::-webkit-scrollbar {
   width: 10px;
   height: 10px;
@@ -112,7 +109,6 @@
   background: hsl(var(--primary));
 }
 
-/* News Ticker Animation */
 @keyframes ticker {
   0% { transform: translateX(100%); }
   100% { transform: translateX(-100%); }
@@ -121,7 +117,74 @@
   animation: ticker 25s linear infinite;
 }
 
-/* Glassmorphism utilities */
 .glass-panel {
   @apply bg-black/40 backdrop-blur-md border border-white/10 shadow-xl;
+}
+
+.btn-primary {
+  @apply px-4 py-2 rounded font-semibold text-white transition-all duration-200;
+  background-color: hsl(var(--primary));
+}
+.btn-primary:hover {
+  opacity: 0.9;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(219, 0, 55, 0.3);
+}
+
+.btn-secondary {
+  @apply px-4 py-2 rounded font-semibold transition-all duration-200;
+  background-color: hsl(var(--secondary));
+  color: hsl(var(--secondary-foreground));
+}
+.btn-secondary:hover {
+  opacity: 0.9;
+  transform: translateY(-2px);
+}
+
+.btn-outline {
+  @apply px-4 py-2 rounded font-semibold border-2 transition-all duration-200;
+  border-color: hsl(var(--primary));
+  color: hsl(var(--primary));
+}
+.btn-outline:hover {
+  background-color: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+}
+
+.card-standard {
+  @apply p-6 rounded-lg transition-all duration-300;
+  background-color: hsl(var(--card));
+  border: 1px solid hsl(var(--card-border));
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+.card-standard:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+  transform: translateY(-2px);
+}
+
+.input-field {
+  @apply w-full px-3 py-2 rounded border transition-all duration-200;
+  background-color: hsl(var(--input));
+  border-color: hsl(var(--border));
+  color: hsl(var(--foreground));
+}
+.input-field:focus {
+  outline: none;
+  border-color: hsl(var(--ring));
+  box-shadow: 0 0 0 3px rgba(219, 0, 55, 0.1);
+}
+
+.badge {
+  @apply inline-block px-3 py-1 rounded-full text-sm font-semibold;
+  background-color: hsl(var(--accent));
+  color: hsl(var(--accent-foreground));
+}
+
+.text-muted {
+  color: hsl(var(--muted-foreground));
+}
+
+.divider {
+  @apply my-4;
+  border-top: 1px solid hsl(var(--border));
 }
