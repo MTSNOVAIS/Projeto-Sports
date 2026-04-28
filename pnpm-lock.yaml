@@ -227,6 +227,9 @@ importers:
       '@tiptap/extension-text-style':
         specifier: ^3.20.4
         version: 3.20.4(@tiptap/core@3.20.4(@tiptap/pm@3.20.4))
+      '@tiptap/extension-underline':
+        specifier: 3.20.4
+        version: 3.20.4(@tiptap/core@3.20.4(@tiptap/pm@3.20.4))
     devDependencies:
       '@hookform/resolvers':
         specifier: ^3.10.0
