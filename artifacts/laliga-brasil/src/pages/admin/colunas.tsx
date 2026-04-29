@@ -29,16 +29,8 @@ import {
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
-type TabKey = "minhas" | "perfil";
-
 export default function AdminColunas() {
-  const { user, refreshUser } = useAuth();
-  const [tab, setTab] = useState<TabKey>("minhas");
-
-  const tabs: { key: TabKey; label: string; icon: React.ElementType }[] = [
-    { key: "minhas", label: "Minhas colunas", icon: FileText },
-    { key: "perfil", label: "Meu perfil", icon: UserIcon },
-  ];
+  const { user } = useAuth();
 
   return (
     <AdminLayout>
@@ -50,34 +42,14 @@ export default function AdminColunas() {
           <h1 className="text-3xl sm:text-4xl font-display font-black tracking-tight">
             Colunas
           </h1>
+          <p className="text-sm text-muted-foreground mt-2 max-w-2xl">
+            Gerencie aqui apenas as colunas que você publicou. As configurações de
+            perfil de colunista e o cadastro de novos colunistas são feitos na
+            página de <Link href="/dashboard/usuarios" className="text-primary hover:underline">Usuários</Link>.
+          </p>
         </div>
 
-        {/* Tabs */}
-        <div className="flex gap-1 border-b border-border mb-6 overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
-          {tabs.map((t) => {
-            const Icon = t.icon;
-            const active = tab === t.key;
-            return (
-              <button
-                key={t.key}
-                onClick={() => setTab(t.key)}
-                className={`whitespace-nowrap inline-flex items-center gap-2 px-4 py-3 text-sm font-bold uppercase tracking-wider border-b-2 transition-colors -mb-px ${
-                  active
-                    ? "border-primary text-primary"
-                    : "border-transparent text-muted-foreground hover:text-white"
-                }`}
-              >
-                <Icon className="w-4 h-4" />
-                {t.label}
-              </button>
-            );
-          })}
-        </div>
-
-        {tab === "minhas" && <MinhasColunasTab userId={user?.id} />}
-        {tab === "perfil" && (
-          <MeuPerfilTab userId={user?.id} refreshUser={refreshUser} />
-        )}
+        <MinhasColunasTab userId={user?.id} />
       </div>
     </AdminLayout>
   );
