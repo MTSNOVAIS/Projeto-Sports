@@ -107,7 +107,6 @@ export function RichTextEditor({
   const editor = useEditor({
     extensions: [
       StarterKit,
-      Underline,
       Link.configure({ openOnClick: false, autolink: true }),
       TextAlign.configure({ types: ["heading", "paragraph"] }),
       TextStyle,
@@ -133,7 +132,7 @@ export function RichTextEditor({
   useEffect(() => {
     if (!editor) return;
     if (value !== editor.getHTML()) {
-      editor.commands.setContent(value, false);
+      editor.commands.setContent(value, { emitUpdate: false });
     }
   }, [value, editor]);
 
