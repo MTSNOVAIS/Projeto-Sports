@@ -1,12 +1,15 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { useSiteSettings, useUpdateSiteSettings } from "@/hooks/use-site-settings";
-import { useAdminLeagues } from "@/hooks/use-leagues";
+import { useAdminLeagues, useCreateLeague } from "@/hooks/use-leagues";
 import { useToast } from "@/hooks/use-toast";
 import {
   Settings, Globe, Image, AlignLeft, Share2, Save, Eye,
   Twitter, Instagram, Youtube, Facebook, Link2, AlertCircle,
+  Search, X, Loader2, Plus, Trophy, Check, ChevronDown,
 } from "lucide-react";
+import { sofascoreSearch, sofascoreTournamentSeasons, tournamentImageUrl } from "@/hooks/use-sofascore";
+import { AnimatePresence, motion } from "framer-motion";
 
 const TikTokIcon = () => (
   <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
@@ -14,9 +17,237 @@ const TikTokIcon = () => (
   </svg>
 );
 
+function slugify(str: string) {
+  return str
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
+function LeaguePicker({
+  value,
+  onChange,
+}: {
+  value: string | number;
+  onChange: (id: number) => void;
+}) {
+  const { data: leagues = [], refetch } = useAdminLeagues();
+  const createLeague = useCreateLeague();
+  const { toast } = useToast();
+
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<any[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [adding, setAdding] = useState<number | null>(null);
+  const [showSearch, setShowSearch] = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+
+  const leagueList = leagues as any[];
+  const selected = leagueList.find((l) => l.id === Number(value));
+
+  useEffect(() => {
+    if (!query.trim()) { setResults([]); return; }
+    clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(async () => {
+      setSearching(true);
+      try {
+        const data = await sofascoreSearch(query);
+        const tournaments = (data.uniqueTournaments || []).filter(
+          (t: any) => t.category?.sport?.slug === "football" || !t.category?.sport?.slug
+        );
+        setResults(tournaments.slice(0, 10));
+      } catch {
+        setResults([]);
+      } finally {
+        setSearching(false);
+      }
+    }, 400);
+  }, [query]);
+
+  async function handleAdd(tournament: any) {
+    setAdding(tournament.id);
+    try {
+      const seasonsData = await sofascoreTournamentSeasons(tournament.id);
+      const seasons: any[] = seasonsData.seasons || [];
+      const currentSeason = seasons[0];
+
+      const created = await createLeague.mutateAsync({
+        name: tournament.name,
+        slug: slugify(tournament.name),
+        country: tournament.category?.name || null,
+        logoUrl: null,
+        sofascoreId: tournament.id,
+        currentSeasonId: currentSeason?.id || null,
+      });
+
+      await refetch();
+      onChange(created.id);
+      setQuery("");
+      setResults([]);
+      setShowSearch(false);
+      toast({ title: "Liga adicionada e selecionada!", description: tournament.name });
+    } catch (e: any) {
+      if (e.message?.includes("409") || e.message?.includes("duplicate")) {
+        toast({ title: "Liga já existe", description: "Selecione ela na lista acima.", variant: "destructive" });
+      } else {
+        toast({ title: "Erro", description: e.message, variant: "destructive" });
+      }
+    } finally {
+      setAdding(null);
+    }
+  }
+
+  return (
+    <div className="space-y-3">
+      {/* Dropdown of existing leagues */}
+      <div className="relative">
+        <Trophy className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+        <select
+          value={value}
+          onChange={(e) => onChange(Number(e.target.value))}
+          className="w-full bg-background border border-border rounded-lg pl-10 pr-10 py-2.5 text-white text-sm focus:border-primary focus:outline-none transition-colors appearance-none"
+        >
+          <option value="">Nenhuma selecionada</option>
+          {leagueList.map((l) => (
+            <option key={l.id} value={l.id}>
+              {l.name}{l.country ? ` (${l.country})` : ""}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {/* Selected league preview */}
+      {selected && (
+        <div className="flex items-center gap-3 px-3 py-2 bg-primary/5 border border-primary/20 rounded-lg">
+          <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 overflow-hidden">
+            <img
+              src={selected.sofascoreId ? tournamentImageUrl(selected.sofascoreId) : ""}
+              alt={selected.name}
+              className="w-6 h-6 object-contain"
+              onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+            />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-bold text-white truncate">{selected.name}</p>
+            {selected.country && <p className="text-xs text-muted-foreground">{selected.country}</p>}
+          </div>
+          <Check className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+        </div>
+      )}
+
+      {/* Toggle search panel */}
+      <button
+        type="button"
+        onClick={() => setShowSearch((v) => !v)}
+        className="flex items-center gap-2 text-xs font-bold text-primary hover:text-accent transition-colors"
+      >
+        <Search className="w-3.5 h-3.5" />
+        {showSearch ? "Fechar busca" : leagueList.length === 0 ? "Buscar liga no SofaScore" : "Adicionar outra liga"}
+      </button>
+
+      {/* Inline SofaScore search */}
+      <AnimatePresence>
+        {showSearch && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            className="overflow-hidden"
+          >
+            <div className="bg-background border border-border rounded-xl p-4 space-y-3">
+              <p className="text-xs text-muted-foreground font-bold uppercase tracking-wider">Buscar no SofaScore</p>
+
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                {searching && (
+                  <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground animate-spin" />
+                )}
+                <input
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Ex: La Liga, Premier League, Champions…"
+                  className="w-full bg-card border border-border rounded-lg pl-10 pr-10 py-2.5 text-white text-sm focus:border-primary focus:outline-none transition-colors"
+                  autoFocus
+                />
+                {query && (
+                  <button
+                    type="button"
+                    onClick={() => { setQuery(""); setResults([]); }}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-white"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+
+              <AnimatePresence>
+                {results.length > 0 && (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="space-y-1.5 max-h-56 overflow-y-auto"
+                  >
+                    {results.map((t: any) => (
+                      <div
+                        key={t.id}
+                        className="flex items-center gap-3 bg-card border border-border rounded-lg px-3 py-2.5 hover:border-primary/40 transition-colors"
+                      >
+                        <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 overflow-hidden">
+                          <img
+                            src={tournamentImageUrl(t.id)}
+                            alt=""
+                            className="w-6 h-6 object-contain"
+                            onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+                          />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-bold text-white text-sm truncate">{t.name}</p>
+                          <p className="text-xs text-muted-foreground truncate">
+                            {t.category?.name}
+                            {t.category?.country?.name ? ` · ${t.category.country.name}` : ""}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleAdd(t)}
+                          disabled={adding === t.id}
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-primary hover:bg-accent text-white rounded-lg text-xs font-bold transition-colors disabled:opacity-50 flex-shrink-0"
+                        >
+                          {adding === t.id
+                            ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            : <Plus className="w-3.5 h-3.5" />
+                          }
+                          {adding === t.id ? "Adicionando…" : "Adicionar"}
+                        </button>
+                      </div>
+                    ))}
+                  </motion.div>
+                )}
+                {query && !searching && results.length === 0 && (
+                  <p className="text-sm text-muted-foreground text-center py-3">
+                    Nenhum resultado para "{query}"
+                  </p>
+                )}
+                {!query && (
+                  <p className="text-xs text-muted-foreground text-center py-2">
+                    Digite o nome da liga para buscar
+                  </p>
+                )}
+              </AnimatePresence>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
 export default function AdminSiteSettings() {
   const { data: settings, isLoading } = useSiteSettings();
-  const { data: leagues } = useAdminLeagues();
   const update = useUpdateSiteSettings();
   const { toast } = useToast();
 
@@ -113,10 +344,14 @@ export default function AdminSiteSettings() {
             {dirty && (
               <div className="flex items-center gap-2 text-amber-400 text-sm font-medium">
                 <AlertCircle className="w-4 h-4" />
-                Alterações não salvas
+                <span className="hidden sm:inline">Alterações não salvas</span>
               </div>
             )}
-            <a href="/" target="_blank" className="flex items-center gap-2 px-4 py-2 rounded-lg border border-border text-muted-foreground hover:text-white hover:border-white/20 transition-colors text-sm font-medium">
+            <a
+              href="/"
+              target="_blank"
+              className="flex items-center gap-2 px-4 py-2 rounded-lg border border-border text-muted-foreground hover:text-white hover:border-white/20 transition-colors text-sm font-medium"
+            >
               <Eye className="w-4 h-4" />
               Ver Site
             </a>
@@ -161,19 +396,21 @@ export default function AdminSiteSettings() {
               </div>
             </div>
 
+            {/* Liga Principal — with inline SofaScore search */}
             <div>
-              <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Liga Principal</label>
-              <select
+              <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                Liga Principal
+              </label>
+              <LeaguePicker
                 value={form.primaryLeagueId}
-                onChange={(e) => handleChange("primaryLeagueId", e.target.value)}
-                className="w-full bg-background border border-border rounded-lg px-4 py-2.5 text-white text-sm focus:border-primary focus:outline-none transition-colors"
-              >
-                <option value="">Nenhuma selecionada</option>
-                {leagues?.map((l: any) => (
-                  <option key={l.id} value={l.id}>{l.name} {l.country ? `(${l.country})` : ""}</option>
-                ))}
-              </select>
-              <p className="text-xs text-muted-foreground mt-1">Define qual liga é exibida por padrão nas seções de resultados e partidas.</p>
+                onChange={(id) => {
+                  setForm((prev) => ({ ...prev, primaryLeagueId: id }));
+                  setDirty(true);
+                }}
+              />
+              <p className="text-xs text-muted-foreground mt-2">
+                Define qual liga é exibida por padrão nas seções de resultados e partidas.
+              </p>
             </div>
 
             <div>
