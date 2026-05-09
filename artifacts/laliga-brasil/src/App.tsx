@@ -26,6 +26,7 @@ import AdminMatches from "@/pages/admin/matches";
 import AdminHighlights from "@/pages/admin/highlights";
 import AdminLeagues from "@/pages/admin/leagues";
 import AdminHomepageSettings from "@/pages/admin/homepage-settings";
+import AdminSiteSettings from "@/pages/admin/site-settings";
 import ResultsPage from "@/pages/results";
 import MatchPage from "@/pages/match";
 import NotFound from "@/pages/not-found";
@@ -117,6 +118,11 @@ function Router() {
       <Route path="/dashboard/pagina-inicial">
         <ProtectedRoute>
           <AdminHomepageSettings />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/dashboard/configuracoes">
+        <ProtectedRoute>
+          <AdminSiteSettings />
         </ProtectedRoute>
       </Route>
 

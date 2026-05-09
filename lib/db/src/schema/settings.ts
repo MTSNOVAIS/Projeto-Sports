@@ -36,6 +36,23 @@ export const homepageSettingsTable = pgTable("homepage_settings", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+export const siteSettingsTable = pgTable("site_settings", {
+  id: serial("id").primaryKey(),
+  siteName: text("site_name").notNull().default("La Liga Brasil"),
+  siteTagline: text("site_tagline").notNull().default("O futebol espanhol em português"),
+  logoUrl: text("logo_url"),
+  logoText: text("logo_text").notNull().default("LL"),
+  footerBio: text("footer_bio").notNull().default("O seu portal definitivo para acompanhar o futebol espanhol. Notícias, análises, resultados e muito mais, feito por brasileiros para brasileiros."),
+  primaryLeagueId: integer("primary_league_id"),
+  twitterUrl: text("twitter_url"),
+  instagramUrl: text("instagram_url"),
+  youtubeUrl: text("youtube_url"),
+  facebookUrl: text("facebook_url"),
+  tiktokUrl: text("tiktok_url"),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 export type NewsSource = typeof newsSourcesTable.$inferSelect;
 export type ImportTopic = typeof importTopicsTable.$inferSelect;
 export type HomepageSettings = typeof homepageSettingsTable.$inferSelect;
+export type SiteSettings = typeof siteSettingsTable.$inferSelect;

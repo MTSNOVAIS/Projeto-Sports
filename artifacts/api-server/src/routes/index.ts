@@ -12,6 +12,7 @@ import columnsRouter from "./columns";
 import rolesRouter from "./roles";
 import authRouter from "./auth";
 import homepageRouter from "./homepage";
+import siteSettingsRouter from "./site-settings";
 
 const router: IRouter = Router();
 
@@ -28,5 +29,6 @@ router.use(columnsRouter);
 router.use(rolesRouter);
 router.use(authRouter);
 router.use(homepageRouter);
+router.use(siteSettingsRouter);
 
 export default router;
