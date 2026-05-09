@@ -12,8 +12,19 @@ export interface HomepageSettings {
   showLatest: boolean;
   maxLatest: number;
   latestTitle: string;
+  latestColumns: number;
   showSidebarMatch: boolean;
   sidebarMatchTitle: string;
+  announcementEnabled: boolean;
+  announcementText: string;
+  announcementColor: string;
+  announcementLink: string | null;
+  showCategorySection: boolean;
+  categorySection: string;
+  categorySectionTitle: string;
+  maxCategorySection: number;
+  seoTitle: string | null;
+  seoDescription: string | null;
   updatedAt: string;
 }
 
@@ -27,8 +38,19 @@ const DEFAULT_SETTINGS: HomepageSettings = {
   showLatest: true,
   maxLatest: 6,
   latestTitle: "Últimas Notícias",
+  latestColumns: 2,
   showSidebarMatch: true,
   sidebarMatchTitle: "Partida em Destaque",
+  announcementEnabled: false,
+  announcementText: "",
+  announcementColor: "primary",
+  announcementLink: null,
+  showCategorySection: false,
+  categorySection: "",
+  categorySectionTitle: "Destaque da Categoria",
+  maxCategorySection: 4,
+  seoTitle: null,
+  seoDescription: null,
   updatedAt: new Date().toISOString(),
 };
 

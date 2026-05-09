@@ -32,8 +32,19 @@ router.put("/admin/homepage-settings", async (req, res): Promise<void> => {
       showLatest,
       maxLatest,
       latestTitle,
+      latestColumns,
       showSidebarMatch,
       sidebarMatchTitle,
+      announcementEnabled,
+      announcementText,
+      announcementColor,
+      announcementLink,
+      showCategorySection,
+      categorySection,
+      categorySectionTitle,
+      maxCategorySection,
+      seoTitle,
+      seoDescription,
     } = req.body;
 
     const existing = await getOrCreateSettings();
@@ -47,8 +58,19 @@ router.put("/admin/homepage-settings", async (req, res): Promise<void> => {
     if (showLatest !== undefined) updates.showLatest = showLatest;
     if (maxLatest !== undefined) updates.maxLatest = Number(maxLatest);
     if (latestTitle !== undefined) updates.latestTitle = latestTitle;
+    if (latestColumns !== undefined) updates.latestColumns = Number(latestColumns);
     if (showSidebarMatch !== undefined) updates.showSidebarMatch = showSidebarMatch;
     if (sidebarMatchTitle !== undefined) updates.sidebarMatchTitle = sidebarMatchTitle;
+    if (announcementEnabled !== undefined) updates.announcementEnabled = announcementEnabled;
+    if (announcementText !== undefined) updates.announcementText = announcementText;
+    if (announcementColor !== undefined) updates.announcementColor = announcementColor;
+    if ("announcementLink" in req.body) updates.announcementLink = announcementLink ?? null;
+    if (showCategorySection !== undefined) updates.showCategorySection = showCategorySection;
+    if (categorySection !== undefined) updates.categorySection = categorySection;
+    if (categorySectionTitle !== undefined) updates.categorySectionTitle = categorySectionTitle;
+    if (maxCategorySection !== undefined) updates.maxCategorySection = Number(maxCategorySection);
+    if ("seoTitle" in req.body) updates.seoTitle = seoTitle ?? null;
+    if ("seoDescription" in req.body) updates.seoDescription = seoDescription ?? null;
 
     const [updated] = await db
       .update(homepageSettingsTable)
