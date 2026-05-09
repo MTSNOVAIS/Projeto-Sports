@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { db, articlesTable, teamsTable, usersTable } from "@workspace/db";
-import { eq, and, desc, like, or, ilike, sql, count } from "drizzle-orm";
+import { eq, and, desc, like, or, ilike, sql, count, isNull } from "drizzle-orm";
 
 const router: IRouter = Router();
 
@@ -82,9 +82,15 @@ router.get("/articles", async (req, res): Promise<void> => {
   const search = req.query.search as string | undefined;
   const kind = (req.query.kind as string | undefined) ?? "article";
 
-  const conditions: any[] = [];
+  const conditions: any[] = [eq(articlesTable.status, "published")];
 
-  if (kind && kind !== "all") conditions.push(eq(articlesTable.kind, kind));
+  if (kind && kind !== "all") {
+    if (kind === "article") {
+      conditions.push(or(eq(articlesTable.kind, "article"), isNull(articlesTable.kind))!);
+    } else {
+      conditions.push(eq(articlesTable.kind, kind));
+    }
+  }
   if (category) conditions.push(eq(articlesTable.category, category));
   if (teamId) conditions.push(eq(articlesTable.teamId, teamId));
   if (featured !== undefined) conditions.push(eq(articlesTable.featured, featured));
