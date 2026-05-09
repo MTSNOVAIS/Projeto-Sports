@@ -2,6 +2,7 @@ import React from "react";
 import { useListArticles, usePublicColumnists, useColumns } from "@/hooks/use-articles";
 import { useFeaturedMatch } from "@/hooks/use-matches";
 import { useSofascoreEvent } from "@/hooks/use-sofascore";
+import { useHomepageSettings } from "@/hooks/use-homepage-settings";
 import { ArticleCard } from "@/components/shared/ArticleCard";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
@@ -85,7 +86,7 @@ function ColumnistProfileCard({ columnist }: { columnist: any }) {
   );
 }
 
-function ColunasSection() {
+function ColunasSection({ sectionTitle }: { sectionTitle: string }) {
   const { data: columnsData, isLoading: loadingColumns } = useColumns({ limit: 20 });
   const { data: columnists = [], isLoading: loadingColumnists } = usePublicColumnists();
 
@@ -97,20 +98,16 @@ function ColunasSection() {
     return new Date(c.publishedAt).getTime() >= dayAgoMs;
   });
 
-  // Don't show anything until we know whether columns exist
   if (loadingColumns || loadingColumnists) return null;
-
-  // No published columns at all → don't render the section
   if (allColumns.length === 0) return null;
 
-  // Recent columns (last 24h) → carousel of columns
   if (recent.length > 0) {
     return (
       <div className="border-t border-border pt-8">
         <div className="flex items-center justify-between mb-5 border-b border-border pb-3">
           <h2 className="font-display text-2xl flex items-center gap-2">
             <Mic className="w-5 h-5 text-amber-400" />
-            <span className="text-amber-400">Colunas</span> de hoje
+            <span className="text-amber-400">{sectionTitle}</span> de hoje
           </h2>
           <Link
             href="/colunistas"
@@ -133,7 +130,6 @@ function ColunasSection() {
     );
   }
 
-  // No recent columns but columnist content exists → carousel of columnist profiles
   if (columnists.length === 0) return null;
 
   return (
@@ -164,7 +160,7 @@ function ColunasSection() {
   );
 }
 
-function FeaturedMatchCard({ sofascoreId }: { sofascoreId: number }) {
+function FeaturedMatchCard({ sofascoreId, title }: { sofascoreId: number; title: string }) {
   const { data, isLoading } = useSofascoreEvent(sofascoreId);
   const event = data?.event;
 
@@ -199,7 +195,7 @@ function FeaturedMatchCard({ sofascoreId }: { sofascoreId: number }) {
           <div className="flex items-center gap-2">
             <Trophy className="w-4 h-4 text-primary" />
             <span className="text-xs font-black uppercase tracking-widest text-primary">
-              {event.tournament?.name || "La Liga"} — Destaque
+              {title}
             </span>
           </div>
           <div className="flex items-center gap-1.5">
@@ -256,21 +252,23 @@ function FeaturedMatchCard({ sofascoreId }: { sofascoreId: number }) {
   );
 }
 
-const MAX_FEATURED = 3;
-
 export default function Home() {
+  const { data: settings } = useHomepageSettings();
   const { data: response, isLoading } = useListArticles({ limit: 12 });
   const { data: featuredMatch } = useFeaturedMatch();
+
+  const maxFeatured = settings?.maxFeatured ?? 3;
+  const maxLatest = settings?.maxLatest ?? 6;
 
   const articles = response?.articles || [];
   const featuredArticles = articles
     .filter((a: any) => a.featured)
-    .slice(0, MAX_FEATURED);
+    .slice(0, maxFeatured);
   const hasFeatured = featuredArticles.length > 0;
   const fallbackFeatured = !hasFeatured && articles[0] ? [articles[0]] : [];
   const featuredToShow = hasFeatured ? featuredArticles : fallbackFeatured;
   const featuredIds = new Set(featuredToShow.map((a: any) => a.id));
-  const latest = articles.filter((a: any) => !featuredIds.has(a.id)).slice(0, 6);
+  const latest = articles.filter((a: any) => !featuredIds.has(a.id)).slice(0, maxLatest);
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -286,11 +284,10 @@ export default function Home() {
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
 
-              {/* Main Content */}
               <div className="lg:col-span-8 space-y-10">
 
-                {/* Featured carousel — up to 3, larger */}
-                {featuredToShow.length > 0 && (
+                {/* Featured section */}
+                {settings?.showFeatured !== false && featuredToShow.length > 0 && (
                   <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -298,7 +295,7 @@ export default function Home() {
                     <div className="flex items-center gap-2 mb-5">
                       <Flame className="text-primary w-6 h-6" />
                       <h2 className="font-display text-2xl text-white">
-                        {hasFeatured && featuredToShow.length > 1 ? "Destaques" : "Destaque"}
+                        {settings?.featuredTitle ?? "Destaques"}
                       </h2>
                     </div>
 
@@ -323,13 +320,18 @@ export default function Home() {
                   </motion.div>
                 )}
 
-                {/* Colunas / Colunistas */}
-                <ColunasSection />
+                {/* Colunas section */}
+                {settings?.showColunas !== false && (
+                  <ColunasSection sectionTitle={settings?.colunasTitle ?? "Colunas"} />
+                )}
 
-                {/* Latest News — title text removed, only the link header */}
-                {latest.length > 0 && (
+                {/* Latest news */}
+                {settings?.showLatest !== false && latest.length > 0 && (
                   <div className="border-t border-border pt-8">
-                    <div className="flex items-center justify-end mb-5">
+                    <div className="flex items-center justify-between mb-5 border-b border-border pb-3">
+                      <h2 className="font-display text-xl text-white font-black">
+                        {settings?.latestTitle ?? "Últimas Notícias"}
+                      </h2>
                       <Link
                         href="/busca"
                         className="text-sm text-muted-foreground hover:text-white transition-colors font-bold"
@@ -355,21 +357,14 @@ export default function Home() {
 
               {/* Sidebar */}
               <aside className="lg:col-span-4 space-y-6">
-
-                {/* Featured Match */}
-                {featuredMatch && (
+                {settings?.showSidebarMatch !== false && featuredMatch && (
                   <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}>
-                    <FeaturedMatchCard sofascoreId={featuredMatch.sofascoreId} />
+                    <FeaturedMatchCard
+                      sofascoreId={featuredMatch.sofascoreId}
+                      title={settings?.sidebarMatchTitle ?? "Partida em Destaque"}
+                    />
                   </motion.div>
                 )}
-
-                {/* Ver Todos os Resultados */}
-                <Link href="/resultados">
-                  <div className="flex items-center justify-between p-4 bg-card border border-border rounded-xl hover:border-primary/30 transition-colors cursor-pointer group">
-                    <span className="font-display font-black text-sm uppercase tracking-wider">Todos os Resultados</span>
-                    <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
-                  </div>
-                </Link>
               </aside>
 
             </div>

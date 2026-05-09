@@ -25,6 +25,7 @@ import ColunistaDetailPage from "@/pages/colunista";
 import AdminMatches from "@/pages/admin/matches";
 import AdminHighlights from "@/pages/admin/highlights";
 import AdminLeagues from "@/pages/admin/leagues";
+import AdminHomepageSettings from "@/pages/admin/homepage-settings";
 import ResultsPage from "@/pages/results";
 import MatchPage from "@/pages/match";
 import NotFound from "@/pages/not-found";
@@ -111,6 +112,11 @@ function Router() {
       <Route path="/dashboard/ligas">
         <ProtectedRoute>
           <AdminLeagues />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/dashboard/pagina-inicial">
+        <ProtectedRoute>
+          <AdminHomepageSettings />
         </ProtectedRoute>
       </Route>
 

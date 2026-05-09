@@ -4,10 +4,8 @@ import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { ArticleCard } from "@/components/shared/ArticleCard";
 import { useListArticles, useColumns } from "@/hooks/use-articles";
-import { Search as SearchIcon, X, LayoutGrid, Newspaper, Mic } from "lucide-react";
+import { Search as SearchIcon, X, Mic } from "lucide-react";
 import { motion } from "framer-motion";
-
-type TabKey = "tudo" | "noticias" | "colunas";
 
 export default function SearchPage() {
   const [location] = useLocation();
@@ -22,7 +20,6 @@ export default function SearchPage() {
 
   const [query, setQuery] = useState(getInitialQuery());
   const [debouncedQuery, setDebouncedQuery] = useState(getInitialQuery());
-  const [tab, setTab] = useState<TabKey>("tudo");
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedQuery(query), 200);
@@ -34,7 +31,6 @@ export default function SearchPage() {
     setDebouncedQuery(getInitialQuery());
   }, [location]);
 
-  // Always fetch a window of recent items so the page can browse without typing
   const { data: articlesResp, isLoading: loadingArticles } = useListArticles({
     search: debouncedQuery || undefined,
     limit: 30,
@@ -46,7 +42,6 @@ export default function SearchPage() {
   const articles = articlesResp?.articles || [];
   const columns = columnsResp?.columns || [];
 
-  // Normalize columns to ArticleCard shape and tag with kind="column"
   const normalizedColumns = useMemo(
     () =>
       columns.map((c) => ({
@@ -64,13 +59,11 @@ export default function SearchPage() {
     [columns]
   );
 
-  // Tag articles (the listArticles endpoint defaults to kind=article so they're already filtered)
   const taggedArticles = useMemo(
     () => articles.map((a) => ({ ...a, kind: "article" as const })),
     [articles]
   );
 
-  // Filter columns by query when one is set
   const filteredColumns = useMemo(() => {
     const q = debouncedQuery.trim().toLowerCase();
     if (!q) return normalizedColumns;
@@ -83,27 +76,13 @@ export default function SearchPage() {
   }, [normalizedColumns, debouncedQuery]);
 
   const items = useMemo(() => {
-    if (tab === "noticias") return taggedArticles;
-    if (tab === "colunas") return filteredColumns;
     const merged: any[] = [...taggedArticles, ...filteredColumns];
     return merged.sort((a, b) => {
       const aT = a.publishedAt ? new Date(a.publishedAt).getTime() : 0;
       const bT = b.publishedAt ? new Date(b.publishedAt).getTime() : 0;
       return bT - aT;
     });
-  }, [tab, taggedArticles, filteredColumns]);
-
-  const counts = {
-    tudo: taggedArticles.length + filteredColumns.length,
-    noticias: taggedArticles.length,
-    colunas: filteredColumns.length,
-  };
-
-  const tabs: { key: TabKey; label: string; icon: React.ElementType; count: number }[] = [
-    { key: "tudo", label: "Tudo", icon: LayoutGrid, count: counts.tudo },
-    { key: "noticias", label: "Notícias", icon: Newspaper, count: counts.noticias },
-    { key: "colunas", label: "Colunas", icon: Mic, count: counts.colunas },
-  ];
+  }, [taggedArticles, filteredColumns]);
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
@@ -151,39 +130,6 @@ export default function SearchPage() {
           )}
         </div>
 
-        {/* Tabs */}
-        <div className="container mx-auto px-4 max-w-3xl mt-4 mb-2">
-          <div className="flex justify-center">
-            <div className="inline-flex items-center gap-1 bg-card border border-border rounded-xl p-1">
-              {tabs.map((t) => {
-                const Icon = t.icon;
-                const active = tab === t.key;
-                return (
-                  <button
-                    key={t.key}
-                    onClick={() => setTab(t.key)}
-                    className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold uppercase tracking-wider transition-colors ${
-                      active
-                        ? "bg-primary text-white"
-                        : "text-muted-foreground hover:text-white hover:bg-white/5"
-                    }`}
-                  >
-                    <Icon className="w-4 h-4" />
-                    {t.label}
-                    <span
-                      className={`text-[10px] px-1.5 py-0.5 rounded ${
-                        active ? "bg-white/20" : "bg-background border border-border"
-                      }`}
-                    >
-                      {t.count}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-
         <div className="container mx-auto px-4 pb-16 pt-4 max-w-5xl">
           {isLoading ? (
             <div className="flex justify-center py-24">
@@ -193,11 +139,7 @@ export default function SearchPage() {
             <div className="text-center py-24 text-muted-foreground">
               <SearchIcon className="w-12 h-12 mx-auto mb-3 opacity-10" />
               <p className="text-base">
-                {tab === "colunas"
-                  ? "Nenhuma coluna publicada ainda"
-                  : tab === "noticias"
-                  ? "Nenhuma notícia encontrada"
-                  : "Nenhum conteúdo encontrado"}
+                {debouncedQuery ? "Nenhum resultado encontrado" : "Nenhum conteúdo publicado ainda"}
               </p>
               {debouncedQuery && (
                 <p className="text-sm mt-1 opacity-70">Tente outros termos de busca</p>

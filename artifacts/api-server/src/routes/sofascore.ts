@@ -152,6 +152,16 @@ router.get("/sofascore/tournament/:id/season/:seasonId/events/next/:page", async
   }
 });
 
+router.get("/sofascore/tournament/:id/season/:seasonId/events/round/:round", async (req, res): Promise<void> => {
+  try {
+    const { id, seasonId, round } = req.params;
+    const data = await sofascoreFetch(`/unique-tournament/${id}/season/${seasonId}/events/round/${round}`);
+    res.json(data);
+  } catch (e: any) {
+    res.status(502).json({ error: e.message });
+  }
+});
+
 router.get("/sofascore/tournament/:id/seasons", async (req, res): Promise<void> => {
   try {
     const data = await sofascoreFetch(`/unique-tournament/${req.params.id}/seasons`);

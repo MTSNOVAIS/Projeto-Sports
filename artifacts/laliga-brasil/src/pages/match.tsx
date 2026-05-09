@@ -1,10 +1,9 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useParams, Link } from "wouter";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import {
   useSofascoreEvent,
-  useSofascoreIncidents,
   useSofascoreStatistics,
   useSofascoreLineups,
   useSofascoreH2H,
@@ -12,9 +11,9 @@ import {
   playerImageUrl,
 } from "@/hooks/use-sofascore";
 import { motion } from "framer-motion";
-import { ArrowLeft, Circle, Users, BarChart2, Clock, Swords, RefreshCw } from "lucide-react";
+import { ArrowLeft, Circle, Users, BarChart2, Swords } from "lucide-react";
 
-type Tab = "incidents" | "statistics" | "lineups" | "h2h";
+type Tab = "statistics" | "lineups" | "h2h";
 
 const STAT_LABELS: Record<string, string> = {
   "Ball possession": "Posse de bola",
@@ -70,103 +69,33 @@ function statusLabel(type: string, description: string): { label: string; color:
   }
 }
 
-function incidentIcon(type: string, incidentClass?: string) {
-  if (type === "goal") return incidentClass === "ownGoal" ? "⚽ (contra)" : "⚽";
-  if (type === "card") return incidentClass === "red" ? "🟥" : "🟨";
-  if (type === "substitution") return "🔄";
-  if (type === "penalty" || incidentClass === "penalty") return "⚽ (pênalti)";
-  if (type === "missedPenalty") return "❌";
-  if (type === "varDecision") return "📺 VAR";
-  return "•";
-}
+function useGameClock(event: any) {
+  const isLive = event?.status?.type === "inprogress";
+  const basePlayed = event?.time?.played ?? 0;
+  const [extraSecs, setExtraSecs] = useState(0);
+  const startRef = useRef<number>(Date.now());
+  const baseRef = useRef<number>(basePlayed);
 
-function incidentLabel(type: string, incidentClass?: string): string {
-  if (type === "goal") {
-    if (incidentClass === "ownGoal") return "Gol contra";
-    if (incidentClass === "penalty") return "Gol (pênalti)";
-    return "Gol";
-  }
-  if (type === "card") return incidentClass === "red" ? "Cartão vermelho" : "Cartão amarelo";
-  if (type === "substitution") return "Substituição";
-  if (type === "missedPenalty") return "Pênalti perdido";
-  if (type === "varDecision") return "Revisão VAR";
-  if (type === "injuryTime") return "Acréscimos";
-  if (type === "period") return "Período";
-  return type;
-}
+  useEffect(() => {
+    if (basePlayed !== baseRef.current) {
+      baseRef.current = basePlayed;
+      startRef.current = Date.now();
+      setExtraSecs(0);
+    }
+  }, [basePlayed]);
 
-function IncidentsTab({ id }: { id: string }) {
-  const { data, isLoading, refetch } = useSofascoreIncidents(id);
-  const incidents: any[] = data?.incidents || [];
+  useEffect(() => {
+    if (!isLive) { setExtraSecs(0); return; }
+    const interval = setInterval(() => {
+      setExtraSecs(Math.floor((Date.now() - startRef.current) / 1000));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [isLive]);
 
-  if (isLoading) {
-    return (
-      <div className="space-y-3 animate-pulse">
-        {Array.from({ length: 6 }).map((_, i) => (
-          <div key={i} className="h-10 bg-white/5 rounded-lg" />
-        ))}
-      </div>
-    );
-  }
-
-  if (!incidents.length) {
-    return <p className="text-muted-foreground text-center py-10">Nenhum lance registrado ainda.</p>;
-  }
-
-  const mainIncidents = incidents.filter(inc =>
-    ["goal", "card", "substitution", "missedPenalty", "varDecision"].includes(inc.incidentType)
-  );
-  const sorted = (mainIncidents.length > 0 ? mainIncidents : incidents)
-    .slice()
-    .sort((a, b) => (b.time || 0) - (a.time || 0));
-
-  return (
-    <div>
-      <div className="flex justify-end mb-3">
-        <button onClick={() => refetch()} className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-white transition-colors">
-          <RefreshCw className="w-3.5 h-3.5" /> Atualizar
-        </button>
-      </div>
-      <div className="space-y-1">
-        {sorted.map((inc: any, i: number) => {
-          const isHome = inc.isHome;
-          const icon = incidentIcon(inc.incidentType, inc.incidentClass);
-          const minute = inc.time ? `${inc.time}${inc.addedTime ? `+${inc.addedTime}` : ""}'` : "";
-          const playerName = inc.player?.name || inc.playerName || "";
-          const assistName = inc.assist1?.name || "";
-          const subPlayerIn = inc.playerIn?.name || "";
-          const subPlayerOut = inc.playerOut?.name || inc.player?.name || "";
-          const isSubstitution = inc.incidentType === "substitution";
-
-          return (
-            <motion.div
-              key={i}
-              initial={{ opacity: 0, x: isHome ? -10 : 10 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: i * 0.03 }}
-              className={`flex items-center gap-3 px-4 py-2.5 rounded-lg hover:bg-white/5 transition-colors ${isHome ? "flex-row" : "flex-row-reverse"}`}
-            >
-              <span className="text-xl w-8 text-center shrink-0">{icon}</span>
-              <div className={`flex-1 ${isHome ? "text-left" : "text-right"}`}>
-                {isSubstitution ? (
-                  <>
-                    <p className="text-xs text-green-400 font-bold">▲ {subPlayerIn}</p>
-                    <p className="text-xs text-red-400">▼ {subPlayerOut}</p>
-                  </>
-                ) : (
-                  <>
-                    <p className="font-bold text-sm text-white">{playerName}</p>
-                    {assistName && <p className="text-xs text-muted-foreground">Assistência: {assistName}</p>}
-                  </>
-                )}
-              </div>
-              <span className="text-xs font-black text-primary bg-primary/10 px-2 py-0.5 rounded min-w-[42px] text-center">{minute}</span>
-            </motion.div>
-          );
-        })}
-      </div>
-    </div>
-  );
+  const totalSecs = basePlayed * 60 + extraSecs;
+  const mins = Math.floor(totalSecs / 60);
+  const secs = totalSecs % 60;
+  return { mins, secs, isLive };
 }
 
 function StatBar({ label, home, away }: { label: string; home: number; away: number }) {
@@ -287,58 +216,35 @@ function LineupsTab({ id }: { id: string }) {
 
   return (
     <div className="space-y-8">
-      {/* Formation header */}
       <div className="grid grid-cols-2 gap-4 text-center">
         <div className="bg-primary/5 border border-primary/20 rounded-xl py-3 px-4">
           <p className="text-xs text-muted-foreground uppercase tracking-widest font-bold mb-1">Mandante</p>
-          {home.formation && (
-            <p className="text-2xl font-black text-primary">{home.formation}</p>
-          )}
+          {home.formation && <p className="text-2xl font-black text-primary">{home.formation}</p>}
         </div>
         <div className="bg-blue-500/5 border border-blue-500/20 rounded-xl py-3 px-4">
           <p className="text-xs text-muted-foreground uppercase tracking-widest font-bold mb-1">Visitante</p>
-          {away.formation && (
-            <p className="text-2xl font-black text-blue-400">{away.formation}</p>
-          )}
+          {away.formation && <p className="text-2xl font-black text-blue-400">{away.formation}</p>}
         </div>
       </div>
 
-      {/* Starters */}
       <div>
         <p className="text-xs font-black uppercase tracking-widest text-muted-foreground mb-3 flex items-center gap-2">
           <span className="w-2 h-2 rounded-full bg-primary inline-block" /> Titulares
         </p>
         <div className="grid grid-cols-2 gap-x-6">
-          <div>
-            {homeStarters.map((p: any) => (
-              <PlayerRow key={p.player?.id || p.jerseyNumber} player={p} side="home" />
-            ))}
-          </div>
-          <div>
-            {awayStarters.map((p: any) => (
-              <PlayerRow key={p.player?.id || p.jerseyNumber} player={p} side="away" />
-            ))}
-          </div>
+          <div>{homeStarters.map((p: any) => <PlayerRow key={p.player?.id || p.jerseyNumber} player={p} side="home" />)}</div>
+          <div>{awayStarters.map((p: any) => <PlayerRow key={p.player?.id || p.jerseyNumber} player={p} side="away" />)}</div>
         </div>
       </div>
 
-      {/* Substitutes */}
       {(homeSubs.length > 0 || awaySubs.length > 0) && (
         <div>
           <p className="text-xs font-black uppercase tracking-widest text-muted-foreground mb-3 flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-yellow-500 inline-block" /> Reservas
           </p>
           <div className="grid grid-cols-2 gap-x-6">
-            <div>
-              {homeSubs.map((p: any) => (
-                <PlayerRow key={p.player?.id || p.jerseyNumber} player={p} side="home" />
-              ))}
-            </div>
-            <div>
-              {awaySubs.map((p: any) => (
-                <PlayerRow key={p.player?.id || p.jerseyNumber} player={p} side="away" />
-              ))}
-            </div>
+            <div>{homeSubs.map((p: any) => <PlayerRow key={p.player?.id || p.jerseyNumber} player={p} side="home" />)}</div>
+            <div>{awaySubs.map((p: any) => <PlayerRow key={p.player?.id || p.jerseyNumber} player={p} side="away" />)}</div>
           </div>
         </div>
       )}
@@ -382,12 +288,12 @@ function H2HTab({ id }: { id: string }) {
 
 export default function MatchPage() {
   const { id } = useParams<{ id: string }>();
-  const [tab, setTab] = useState<Tab>("incidents");
+  const [tab, setTab] = useState<Tab>("statistics");
   const { data, isLoading, isError } = useSofascoreEvent(id);
   const event = data?.event;
+  const clock = useGameClock(event);
 
   const tabs: { key: Tab; label: string; icon: React.ReactNode }[] = [
-    { key: "incidents", label: "Lance a Lance", icon: <Clock className="w-4 h-4" /> },
     { key: "statistics", label: "Estatísticas", icon: <BarChart2 className="w-4 h-4" /> },
     { key: "lineups", label: "Escalações", icon: <Users className="w-4 h-4" /> },
     { key: "h2h", label: "Confrontos", icon: <Swords className="w-4 h-4" /> },
@@ -423,6 +329,7 @@ export default function MatchPage() {
                 {(() => {
                   const status = statusLabel(event.status.type, event.status.description);
                   const isLive = event.status.type === "inprogress";
+                  const isFinished = event.status.type === "finished";
                   const homeScore = event.homeScore?.current ?? null;
                   const awayScore = event.awayScore?.current ?? null;
                   const d = new Date(event.startTimestamp * 1000);
@@ -454,10 +361,17 @@ export default function MatchPage() {
                           <div className="flex items-center justify-center gap-1.5 mt-2">
                             {isLive && <Circle className="w-2 h-2 text-green-400 fill-green-400 animate-pulse" />}
                             <span className={`text-xs font-bold uppercase ${status.color}`}>{status.label}</span>
-                            {isLive && event.time?.played && (
-                              <span className="text-xs text-green-400 font-black">{event.time.played}'</span>
-                            )}
                           </div>
+                          {isLive && (
+                            <div className="flex items-center justify-center gap-1 mt-1">
+                              <span className="font-mono font-black text-green-400 text-xl">
+                                {clock.mins}:{String(clock.secs).padStart(2, "0")}
+                              </span>
+                            </div>
+                          )}
+                          {isFinished && event.time?.played && (
+                            <div className="text-xs text-muted-foreground mt-1">{event.time.played}'</div>
+                          )}
                         </div>
 
                         <div className="flex-1 flex flex-col items-center gap-2">
@@ -474,8 +388,12 @@ export default function MatchPage() {
                       {homeScore !== null && (
                         <div className="flex items-center gap-2 text-xs text-muted-foreground">
                           <span>{d.toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" })}</span>
-                          <span>·</span>
-                          <span>{event.venue?.city?.name || ""} {event.venue?.stadium?.name ? `· ${event.venue.stadium.name}` : ""}</span>
+                          {(event.venue?.city?.name || event.venue?.stadium?.name) && (
+                            <>
+                              <span>·</span>
+                              <span>{event.venue?.city?.name || ""} {event.venue?.stadium?.name ? `· ${event.venue.stadium.name}` : ""}</span>
+                            </>
+                          )}
                         </div>
                       )}
                     </div>
@@ -500,7 +418,6 @@ export default function MatchPage() {
               </div>
 
               <div className="py-6">
-                {tab === "incidents" && id && <IncidentsTab id={id} />}
                 {tab === "statistics" && id && <StatisticsTab id={id} />}
                 {tab === "lineups" && id && <LineupsTab id={id} />}
                 {tab === "h2h" && id && <H2HTab id={id} />}

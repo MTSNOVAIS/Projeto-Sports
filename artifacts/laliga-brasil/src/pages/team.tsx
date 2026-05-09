@@ -4,7 +4,7 @@ import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { ArticleCard } from "@/components/shared/ArticleCard";
 import { useGetTeam } from "@/hooks/use-teams";
-import { Shield, MapPin, Building2, Calendar, ChevronLeft, Trophy } from "lucide-react";
+import { Shield, MapPin, Building2, Calendar, ChevronLeft, Trophy, ChevronRight } from "lucide-react";
 import { motion } from "framer-motion";
 
 export default function TeamPage() {
@@ -38,12 +38,12 @@ export default function TeamPage() {
 
   const titles: any[] = Array.isArray(team.titles) ? team.titles : [];
   const totalTitles = titles.reduce((s: number, t: any) => s + (Number(t.count) || 0), 0);
+  const sofascoreId = (team as any).sofascoreId;
 
   return (
     <div className="min-h-screen flex flex-col">
       <Navbar />
       <main className="flex-grow">
-        {/* Team Hero */}
         <div className="relative border-b border-border overflow-hidden" style={{ background: `linear-gradient(135deg, #0D0D0D 0%, ${team.primaryColor}22 50%, #0D0D0D 100%)` }}>
           <div className="absolute inset-0 opacity-5" style={{ backgroundImage: `radial-gradient(circle, ${team.primaryColor} 1px, transparent 1px)`, backgroundSize: '30px 30px' }} />
           <div className="container mx-auto px-4 py-12 relative z-10">
@@ -51,7 +51,6 @@ export default function TeamPage() {
               <ChevronLeft className="w-4 h-4" /> Todos os Times
             </Link>
             <div className="flex flex-col md:flex-row items-center md:items-start gap-8">
-              {/* Crest */}
               <div
                 className="w-32 h-32 flex-shrink-0 rounded-full flex items-center justify-center"
                 style={{
@@ -66,7 +65,6 @@ export default function TeamPage() {
                   <Shield className="w-16 h-16" style={{ color: team.primaryColor }} />
                 )}
               </div>
-              {/* Info */}
               <div className="text-center md:text-left flex-1">
                 <h1 className="text-4xl md:text-5xl font-black text-white mb-3">{team.name}</h1>
                 <div className="flex flex-wrap gap-4 justify-center md:justify-start text-sm text-muted-foreground">
@@ -82,12 +80,24 @@ export default function TeamPage() {
                 {team.description && (
                   <p className="mt-4 max-w-2xl text-gray-400 leading-relaxed">{team.description}</p>
                 )}
+
+                {sofascoreId && (
+                  <div className="mt-5">
+                    <Link
+                      href={`/resultados?team=${sofascoreId}`}
+                      className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary/10 hover:bg-primary/20 border border-primary/30 hover:border-primary/60 text-primary rounded-xl font-bold text-sm transition-all"
+                    >
+                      <Trophy className="w-4 h-4" />
+                      Ver Resultados
+                      <ChevronRight className="w-4 h-4" />
+                    </Link>
+                  </div>
+                )}
               </div>
             </div>
           </div>
         </div>
 
-        {/* Titles section */}
         {titles.length > 0 && (
           <div className="border-b border-border bg-card/30">
             <div className="container mx-auto px-4 py-8">
@@ -110,7 +120,6 @@ export default function TeamPage() {
           </div>
         )}
 
-        {/* Articles */}
         <div className="container mx-auto px-4 py-10">
           <div className="flex items-center justify-between mb-8 border-b border-border pb-4">
             <h2 className="text-2xl font-bold">

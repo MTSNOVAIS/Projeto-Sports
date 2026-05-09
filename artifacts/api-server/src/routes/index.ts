@@ -11,6 +11,7 @@ import usersRouter from "./users";
 import columnsRouter from "./columns";
 import rolesRouter from "./roles";
 import authRouter from "./auth";
+import homepageRouter from "./homepage";
 
 const router: IRouter = Router();
 
@@ -26,5 +27,6 @@ router.use(usersRouter);
 router.use(columnsRouter);
 router.use(rolesRouter);
 router.use(authRouter);
+router.use(homepageRouter);
 
 export default router;

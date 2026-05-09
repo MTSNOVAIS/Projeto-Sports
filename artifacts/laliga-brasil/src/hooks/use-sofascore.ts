@@ -153,3 +153,15 @@ export function useSofascoreTournamentNextEvents(tournamentId: number | string |
     enabled: !!tournamentId && !!seasonId,
   });
 }
+
+export function useSofascoreTournamentRoundEvents(
+  tournamentId: number | string | undefined,
+  seasonId: number | string | undefined,
+  round: number | undefined
+) {
+  return useQuery({
+    queryKey: ["sofascore", "tournament", tournamentId, "season", seasonId, "round", round],
+    queryFn: () => apiFetch<any>(`/api/sofascore/tournament/${tournamentId}/season/${seasonId}/events/round/${round}`),
+    enabled: !!tournamentId && !!seasonId && round !== undefined,
+  });
+}
