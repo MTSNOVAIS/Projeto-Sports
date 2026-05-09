@@ -28,7 +28,6 @@ import {
   ChevronDown,
   Settings,
   Star,
-  Zap,
   X,
   Plus,
   Check,
@@ -647,14 +646,7 @@ function SettingsPanel({
               description="Aparece no carrossel principal da home (máx. 4 ativos)."
               icon={<Star className="w-4 h-4" />}
             />
-            <ToggleSwitch
-              checked={formData.breakingNews}
-              onChange={(v) => setFormData((p: any) => ({ ...p, breakingNews: v }))}
-              label="Urgente (ticker)"
-              description="Aparece no ticker vermelho no topo do site."
-              icon={<Zap className="w-4 h-4" />}
-            />
-            {(formData.featured || formData.breakingNews) && (
+            {formData.featured && (
               <p className="text-xs text-yellow-300/90 bg-yellow-500/10 border border-yellow-500/30 rounded-lg px-3 py-2">
                 Os destaques só aparecem no site quando o artigo está publicado.
               </p>
@@ -724,7 +716,7 @@ export default function AdminArticleEditor() {
   const isEditing    = !!editParams?.id;
   const articleId    = isEditing ? parseInt(editParams!.id) : undefined;
 
-  const { user, canAccessColumns } = useAuth();
+  const { user, isAdmin, canAccessColumns } = useAuth();
   const { data: existingArticle, isLoading: loadingArticle } = useAdminGetArticle(
     articleId as number,
     { query: { enabled: isEditing } },
@@ -1000,6 +992,37 @@ export default function AdminArticleEditor() {
     return <div className="p-12 text-center text-white">Carregando editor...</div>;
   }
 
+  const articleAuthorId = (existingArticle as any)?.authorId as number | null | undefined;
+  const isOwnArticle =
+    !isEditing ||
+    !existingArticle ||
+    articleAuthorId == null ||
+    articleAuthorId === Number(user?.id) ||
+    isAdmin;
+
+  if (isEditing && !loadingArticle && !isOwnArticle) {
+    return (
+      <AdminLayout>
+        <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 text-center px-4">
+          <div className="w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center">
+            <FileText className="w-8 h-8 text-destructive" />
+          </div>
+          <h2 className="font-display text-xl font-black text-white">Sem permissão</h2>
+          <p className="text-sm text-muted-foreground max-w-xs">
+            Você só pode editar suas próprias publicações. Apenas administradores podem
+            editar publicações de outros autores.
+          </p>
+          <button
+            onClick={() => setLocation("/dashboard/artigos")}
+            className="mt-2 bg-card border border-border text-white px-5 py-2.5 rounded-lg text-sm font-bold hover:bg-muted transition-colors"
+          >
+            ← Voltar para Publicações
+          </button>
+        </div>
+      </AdminLayout>
+    );
+  }
+
   const badge = STATUS_BADGE[persistedStatus] ?? STATUS_BADGE.draft;
   const previewUrl = articleSlug ? `${BASE}/noticias/${articleSlug}` : null;
 
@@ -1011,7 +1034,6 @@ export default function AdminArticleEditor() {
     if (team) settingsSummary.push({ id: "team", label: (team as any).name, tab: "geral" });
   }
   if (formData.featured)     settingsSummary.push({ id: "f", label: "★ Destaque", tab: "destaques", tone: "primary" });
-  if (formData.breakingNews) settingsSummary.push({ id: "b", label: "⚡ Urgente", tab: "destaques", tone: "primary" });
   const externalCoAuthors = (formData.coAuthorList ?? []).length;
   if (externalCoAuthors > 0)
     settingsSummary.push({ id: "co", label: `+${externalCoAuthors} co-autor${externalCoAuthors > 1 ? "es" : ""}`, tab: "autoria" });
