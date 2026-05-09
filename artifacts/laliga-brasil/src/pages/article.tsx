@@ -1,16 +1,43 @@
-import React from "react";
+import React, { useState } from "react";
 import { useRoute } from "wouter";
 import { useGetArticle } from "@/hooks/use-articles";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { Link } from "wouter";
-import { Calendar, User, Eye, Share2, Twitter, Facebook, Link as LinkIcon, Shield, Globe, Clock } from "lucide-react";
+import { Calendar, User, Eye, Twitter, Facebook, Link as LinkIcon, Shield, Globe, Check } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
 export default function ArticleView() {
   const [, params] = useRoute("/noticias/:slug");
   const { data: article, isLoading, error } = useGetArticle(params?.slug || "", { query: { enabled: !!params?.slug } });
+  const [copied, setCopied] = useState(false);
+
+  function shareOnTwitter() {
+    const url = encodeURIComponent(window.location.href);
+    const text = encodeURIComponent(article?.title ?? "");
+    window.open(`https://twitter.com/intent/tweet?url=${url}&text=${text}`, "_blank", "noopener,width=600,height=400");
+  }
+
+  function shareOnFacebook() {
+    const url = encodeURIComponent(window.location.href);
+    window.open(`https://www.facebook.com/sharer/sharer.php?u=${url}`, "_blank", "noopener,width=600,height=400");
+  }
+
+  async function copyLink() {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+    } catch {
+      const ta = document.createElement("textarea");
+      ta.value = window.location.href;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      document.body.removeChild(ta);
+    }
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
 
   if (isLoading) {
     return (
@@ -129,10 +156,35 @@ export default function ArticleView() {
               </div>
               
               <div className="flex items-center gap-3">
-                <span className="mr-2">Compartilhar:</span>
-                <button className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center hover:bg-primary hover:text-white transition-colors"><Twitter className="w-4 h-4" /></button>
-                <button className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center hover:bg-primary hover:text-white transition-colors"><Facebook className="w-4 h-4" /></button>
-                <button className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center hover:bg-primary hover:text-white transition-colors"><LinkIcon className="w-4 h-4" /></button>
+                <span className="text-sm mr-1">Compartilhar:</span>
+                <button
+                  onClick={shareOnTwitter}
+                  title="Compartilhar no Twitter / X"
+                  className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center hover:bg-[#1DA1F2] hover:text-white transition-colors"
+                >
+                  <Twitter className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={shareOnFacebook}
+                  title="Compartilhar no Facebook"
+                  className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center hover:bg-[#1877F2] hover:text-white transition-colors"
+                >
+                  <Facebook className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={copyLink}
+                  title={copied ? "Link copiado!" : "Copiar link"}
+                  className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${
+                    copied
+                      ? "bg-green-500 text-white scale-110"
+                      : "bg-white/5 hover:bg-primary hover:text-white"
+                  }`}
+                >
+                  {copied ? <Check className="w-4 h-4" /> : <LinkIcon className="w-4 h-4" />}
+                </button>
+                {copied && (
+                  <span className="text-xs text-green-400 font-medium animate-fade-in">Link copiado!</span>
+                )}
               </div>
             </div>
           </div>
